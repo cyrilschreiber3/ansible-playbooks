@@ -4,7 +4,6 @@
   tasks:
       - name: install sudo
         ansible.builtin.package:
-            become: true
             name: sudo
             state: present
         become: true
