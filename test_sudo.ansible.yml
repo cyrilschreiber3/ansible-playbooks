@@ -1,9 +1,10 @@
 ---
 - hosts: schreibernet
+  become: true
 
   tasks:
-      - name: install sudo
-        ansible.builtin.package:
-            name: sudo
-            state: present
-        become: true
+      - name: Check if root
+        command: id -u
+        register: id_output
+        changed_when: False
+        failed_when: id_output.stdout != '0'
