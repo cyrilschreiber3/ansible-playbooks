@@ -1,5 +1,5 @@
 ---
-- hosts: schreibernet
+- hosts: all
   become: true
 
   tasks:
