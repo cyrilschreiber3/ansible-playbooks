@@ -6,5 +6,5 @@
       - name: Check if root
         command: id -u
         register: id_output
-        changed_when: False
+        changed_when: false
         failed_when: id_output.stdout != '0'
