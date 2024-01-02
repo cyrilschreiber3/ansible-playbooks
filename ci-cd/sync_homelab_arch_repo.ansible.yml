@@ -4,6 +4,14 @@
   connection: local
 
   vars:
+      private_repo_pat: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          36643032393131333361326438326333333033336537666537323765316331623533646462386361
+          3561616432323663653564343362313261663933366162300a626463366265346633656466613033
+          39626433616531393435626332346138616130313861346635303539353337613134373564393736
+          6662353038366436620a373737376139343632386661383831306435363739633734653433363730
+          66376161663937616236336633653961383965326635636631333139626430396163383035623065
+          3164383131656165313139376631313562346134333964623361
       public_domain_1: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           36373564313165623064636536653765656361386435336135643166363962626162393336323939
@@ -29,10 +37,9 @@
   tasks:
       - name: Clone the private repo
         ansible.builtin.git:
-            repo: git@github.com:cyrilschreiber3/homelab-arch.git
+            repo: "https://{{ private_repo_pat }}@github.com/cyrilschreiber3/homelab-arch.git"
             dest: /tmp/homelab-arch-private
             version: master
-            key_file: "{{ private_key_file }}"
             accept_hostkey: yes
             clone: yes
             update: yes
@@ -40,10 +47,9 @@
 
       - name: Clone the public repo
         ansible.builtin.git:
-            repo: git@github.com:cyrilschreiber3/homelab-arch-public.git
+            repo: "https://{{ private_repo_pat }}@github.com/cyrilschreiber3/homelab-arch-public.git"
             dest: /tmp/homelab-arch-public
             version: master
-            key_file: "{{ private_key_file }}"
             accept_hostkey: yes
             clone: yes
             update: yes
@@ -113,9 +119,8 @@
       - name: Commit and push the changes # noqa: command-instead-of-module
         ansible.builtin.shell: |
             cd /tmp/homelab-arch-public
-            git config --global user.name "Ansible Semaphore"
-            git config --global user.email "admin@the127001.ch"
-            git config core.sshCommand "ssh -i {{ private_key_file }} -F /dev/null"
+            git config user.name "Ansible Semaphore"
+            git config user.email "admin@the127001.ch"
             git add -A && git commit -m "Ansible Semaphore Job ID #{{ semaphore_vars.task_details.id }}: Automated Commit by Ansible" && git push
         changed_when: git_status_output.stdout != ""
         when: git_status_output.stdout != ""
