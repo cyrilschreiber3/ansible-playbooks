@@ -1,0 +1,126 @@
+---
+- name: Sync and sanitize the homelab arch public repo
+  hosts: localhost
+  connection: local
+
+  vars:
+      public_domain_1: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          36373564313165623064636536653765656361386435336135643166363962626162393336323939
+          6166386664313763323263643736303934326563306561650a616136363065333333353730663231
+          33666637323135336236656130363539353436656338386434373034303665323230383832393862
+          3763326639373436610a316631363036626339386530353430373037333535336466346564666535
+          30626139386432623961383837613131613762383365633933386436646232613231
+      public_domain_2: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          64623434306130356237373364326461663461663133613835353731646338333865636131326330
+          3134353162353838303565386664373534383533366331610a336539396630656139303363303032
+          35353137383665313036653530623039363838626264656130333363663762356163613230353365
+          6433646135386636360a313962643865633864306432643033396334623539386462633531383939
+          3431
+      internal_domain_1: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          32623864323666396565306436393139343030386434646136343633306231633265396435646236
+          3335396230336131656361383930653834666161336566320a643936366536393535306433326561
+          66383366353533643738373337313330356533346237373265313864663330383966333861653233
+          6134386333626130620a313731626535343365333532396466343661383035363262646631646361
+          33393831346464653264646165346333653338633835343034666262346139303934
+
+  tasks:
+      - name: Clone the private repo
+        ansible.builtin.git:
+            repo: git@github.com:cyrilschreiber3/homelab-arch.git
+            dest: /tmp/homelab-arch-private
+            version: master
+            accept_hostkey: yes
+            clone: yes
+            update: yes
+            force: yes
+
+      - name: Clone the public repo
+        ansible.builtin.git:
+            repo: git@github.com:cyrilschreiber3/homelab-arch-public.git
+            dest: /tmp/homelab-arch-public
+            version: master
+            accept_hostkey: yes
+            clone: yes
+            update: yes
+            force: yes
+
+      - name: Copy all files to the public repo
+        ansible.posix.synchronize:
+            src: /tmp/homelab-arch-private/
+            dest: /tmp/homelab-arch-public
+            recursive: yes
+            rsync_opts:
+                - "--exclude=README.md"
+                - "--include='*/'"
+                - "--include='*.md'"
+                - "--exclude='*'"
+
+      - name: Find all .md files except README.md
+        ansible.builtin.find:
+            paths: /tmp/homelab-arch-public/
+            patterns: "*.md"
+            exclude: "README.md"
+            recurse: yes
+        register: md_files
+
+      - name: Replace all domain occurrences for {{ public_domain_1 }}
+        ansible.builtin.replace:
+            path: "{{ item.path }}"
+            regexp: "{{ public_domain_1 }}"
+            replace: publicdomain1.com
+        with_items: "{{ md_files.files }}"
+
+      - name: Replace all domain occurrences for {{ public_domain_2 }}
+        ansible.builtin.replace:
+            path: "{{ item.path }}"
+            regexp: "{{ public_domain_2 }}"
+            replace: publicdomain2.com
+        with_items: "{{ md_files.files }}"
+
+      - name: Replace all domain occurrences for {{ internal_domain_1 }}
+        ansible.builtin.replace:
+            path: "{{ item.path }}"
+            regexp: "{{ internal_domain_1 }}"
+            replace: internaldomain1.com
+        with_items: "{{ md_files.files }}"
+
+      - name: Replace all MAC addresses with 00:00:00:00:00:00
+        ansible.builtin.replace:
+            path: "{{ item.path }}"
+            regexp: "([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})"
+            replace: "00:00:00:00:00:00"
+        with_items: "{{ md_files.files }}"
+
+      - name: Convert all Obsidian links to markdown links
+        ansible.builtin.script:
+            cmd: "{{ playbook_dir }}/sync_homelab_arch_repo.modules/linkConverter.py '{{ item.path }}'"
+            executable: python3
+        with_items: "{{ md_files.files }}"
+        register: result
+        failed_when: result.rc != 0 and result.rc != 254
+        changed_when: result.rc != 254
+
+      - name: Check for changes to commit # noqa: command-instead-of-module
+        ansible.builtin.command: git status --short
+        register: git_status_output
+        changed_when: git_status_output.stdout != ""
+
+      - name: Commit and push the changes # noqa: command-instead-of-module
+        ansible.builtin.shell: |
+            git config --global user.name "Ansible Semaphore"
+            git config --global user.email "admin@the127001.ch"
+            git add -A && git commit -m "Ansible Semaphore Job ID #00: Automated Commit by Ansible" && git push
+        changed_when: git_status_output.stdout != ""
+        when: git_status_output.stdout != ""
+        # git add -A && git commit -m "Ansible Semaphore Job ID #{{ semaphore_vars.task_details.id }}: Automated Commit by Ansible" && git push
+
+      - name: Clean up both repos
+        ansible.builtin.file:
+            path: "{{ item }}"
+            state: absent
+        loop:
+            - /tmp/homelab-arch-private
+            - /tmp/homelab-arch-public
