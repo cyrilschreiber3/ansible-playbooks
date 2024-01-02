@@ -32,6 +32,7 @@
             repo: git@github.com:cyrilschreiber3/homelab-arch.git
             dest: /tmp/homelab-arch-private
             version: master
+            key_file: "{{ private_key_file }}"
             accept_hostkey: yes
             clone: yes
             update: yes
@@ -42,6 +43,7 @@
             repo: git@github.com:cyrilschreiber3/homelab-arch-public.git
             dest: /tmp/homelab-arch-public
             version: master
+            key_file: "{{ private_key_file }}"
             accept_hostkey: yes
             clone: yes
             update: yes
@@ -113,6 +115,7 @@
             cd /tmp/homelab-arch-public
             git config --global user.name "Ansible Semaphore"
             git config --global user.email "admin@the127001.ch"
+            git config core.sshCommand "ssh -i {{ private_key_file }} -F /dev/null"
             git add -A && git commit -m "Ansible Semaphore Job ID #{{ semaphore_vars.task_details.id }}: Automated Commit by Ansible" && git push
         changed_when: git_status_output.stdout != ""
         when: git_status_output.stdout != ""
