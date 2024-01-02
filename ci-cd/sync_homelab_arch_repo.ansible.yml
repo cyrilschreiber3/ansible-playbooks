@@ -59,6 +59,7 @@
         ansible.builtin.package:
             name: rsync
             state: present
+        become: yes
 
       - name: Copy all files to the public repo
         ansible.posix.synchronize:
