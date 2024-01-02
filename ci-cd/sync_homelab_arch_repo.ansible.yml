@@ -117,7 +117,7 @@
 
       - name: Check for changes to commit # noqa: command-instead-of-module
         ansible.builtin.command:
-            cmd: git status --short$
+            cmd: git status --short
             chdir: /tmp/homelab-arch-public
         register: git_status_output
         changed_when: git_status_output.stdout != ""
