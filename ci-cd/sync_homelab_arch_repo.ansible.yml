@@ -55,64 +55,62 @@
             update: yes
             force: yes
 
-      - name: Install rsync
-        ansible.builtin.package:
-            name: rsync
-            state: present
-        become: yes
+      - name: Find all .md files except README.md in the private repo
+        ansible.builtin.find:
+            paths: /tmp/homelab-arch-private/
+            patterns: "*.md"
+            exclude: "README.md"
+            recurse: yes
+        register: md_files_private
 
-      - name: Copy all files to the public repo
-        ansible.posix.synchronize:
-            src: /tmp/homelab-arch-private/
-            dest: /tmp/homelab-arch-public
-            recursive: yes
-            rsync_opts:
-                - "--exclude=README.md"
-                - "--include='*/'"
-                - "--include='*.md'"
-                - "--exclude='*'"
+      - name: Copy all .md files except README.md to the public repo
+        ansible.builtin.copy:
+            src: "{{ item.path }}"
+            dest: "/tmp/homelab-arch-public/{{ item.path | regex_replace('^/tmp/homelab-arch-private/', '') }}"
+            mode: preserve
+        loop: "{{ md_files_private.files }}"
 
-      - name: Find all .md files except README.md
+      - name: Find all .md files except README.md in the public repo
         ansible.builtin.find:
             paths: /tmp/homelab-arch-public/
             patterns: "*.md"
             exclude: "README.md"
             recurse: yes
-        register: md_files
+        register: md_files_public
 
       - name: Replace all domain occurrences for {{ public_domain_1 }}
         ansible.builtin.replace:
             path: "{{ item.path }}"
             regexp: "{{ public_domain_1 }}"
             replace: publicdomain1.com
-        with_items: "{{ md_files.files }}"
+        with_items: "{{ md_files_public.files }}"
 
       - name: Replace all domain occurrences for {{ public_domain_2 }}
         ansible.builtin.replace:
             path: "{{ item.path }}"
             regexp: "{{ public_domain_2 }}"
             replace: publicdomain2.com
-        with_items: "{{ md_files.files }}"
+        with_items: "{{ md_files_public.files }}"
 
       - name: Replace all domain occurrences for {{ internal_domain_1 }}
         ansible.builtin.replace:
             path: "{{ item.path }}"
             regexp: "{{ internal_domain_1 }}"
             replace: internaldomain1.com
-        with_items: "{{ md_files.files }}"
+        with_items: "{{ md_files_public.files }}"
 
       - name: Replace all MAC addresses with 00:00:00:00:00:00
         ansible.builtin.replace:
             path: "{{ item.path }}"
             regexp: "([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})"
             replace: "00:00:00:00:00:00"
-        with_items: "{{ md_files.files }}"
+        with_items: "{{ md_files_public.files }}"
 
       - name: Convert all Obsidian links to markdown links
         ansible.builtin.script:
             cmd: "{{ playbook_dir }}/sync_homelab_arch_repo.modules/linkConverter.py '{{ item.path }}'"
             executable: python3
-        with_items: "{{ md_files.files }}"
+        with_items: "{{ md_files_public.files }}"
         register: result
         failed_when: result.rc != 0 and result.rc != 254
         changed_when: result.rc != 254
