@@ -103,11 +103,6 @@
         failed_when: result.rc != 0 and result.rc != 254
         changed_when: result.rc != 254
 
-      - name: Change directory to the public repo # noqa: command-instead-of-shell no-changed-when
-        ansible.builtin.shell:
-            chdir: /tmp/homelab-arch-public
-            cmd: pwd
-
       - name: Check for changes to commit # noqa: command-instead-of-module
         ansible.builtin.command: git status --short
         register: git_status_output
@@ -115,19 +110,12 @@
 
       - name: Commit and push the changes # noqa: command-instead-of-module
         ansible.builtin.shell: |
-            git config --global user.name "cyrilschreiber3"
-            git config --global user.email "contact@cyrilschreiber.ch"
-            git add -A && git commit -m "Ansible Semaphore Job ID #00: Automated Commit by Ansible" && git push
+            cd /tmp/homelab-arch-public
+            git config --global user.name "Ansible Semaphore"
+            git config --global user.email "admin@the127001.ch"
+            git add -A && git commit -m "Ansible Semaphore Job ID #{{ semaphore_vars.task_details.id }}: Automated Commit by Ansible" && git push
         changed_when: git_status_output.stdout != ""
         when: git_status_output.stdout != ""
-        # git config --global user.name "Ansible Semaphore"
-        # git config --global user.email "admin@the127001.ch"
-        # git add -A && git commit -m "Ansible Semaphore Job ID #{{ semaphore_vars.task_details.id }}: Automated Commit by Ansible" && git push
-
-      - name: Change directory to the base directory # noqa: command-instead-of-shell no-changed-when
-        ansible.builtin.shell:
-            chdir: "{{ playbook_dir }}"
-            cmd: pwd
 
       - name: Clean up both repos
         ansible.builtin.file:
