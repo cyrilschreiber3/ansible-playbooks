@@ -55,6 +55,11 @@
             update: yes
             force: yes
 
+      - name: Install rsync
+        ansible.builtin.package:
+            name: rsync
+            state: present
+
       - name: Copy all files to the public repo
         ansible.posix.synchronize:
             src: /tmp/homelab-arch-private/
