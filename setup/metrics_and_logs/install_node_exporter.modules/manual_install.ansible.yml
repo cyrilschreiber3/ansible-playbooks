@@ -1,0 +1,74 @@
+---
+- name: Install prerequisites
+  become: yes
+  ansible.builtin.package:
+      name: "{{ item }}"
+      state: present
+  with_items:
+      - curl
+      - gzip
+      - tar
+
+- name: Check current node_exporter version.
+  ansible.builtin.command: "{{ node_exporter_bin_path }} --version"
+  failed_when: false
+  changed_when: false
+  register: node_exporter_version_check
+
+- name: Set arch parameter
+  ansible.builtin.set_fact:
+      node_exporter_arch: "{{ (ansible_architecture == 'x86_64') | ternary('amd64', 'arm64') }}"
+
+- name: Set node_exporter_download_url
+  ansible.builtin.set_fact:
+      node_exporter_download_url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-{{ node_exporter_arch }}.tar.gz" # noqa: yaml[line-length]
+
+- name: Download and unarchive node_exporter into temporary location.
+  ansible.builtin.unarchive:
+      src: "{{ node_exporter_download_url }}"
+      dest: /tmp
+      remote_src: true
+      mode: 0755
+  when: >
+      node_exporter_version_check.stdout is not defined
+      or node_exporter_version not in node_exporter_version_check.stdout
+  register: node_exporter_download_check
+
+- name: Move node_exporter binary into place.
+  become: yes
+  ansible.builtin.copy:
+      src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-{{ node_exporter_arch }}/node_exporter"
+      dest: "{{ node_exporter_bin_path }}"
+      mode: 0755
+      remote_src: true
+  notify: restart_node_exporter
+  when: >
+      node_exporter_download_check is changed
+      or node_exporter_version_check.stdout | length == 0
+
+- name: Create node_exporter user.
+  become: yes
+  ansible.builtin.user:
+      name: node_exporter
+      shell: /sbin/nologin
+      state: present
+
+- name: Copy the node_exporter systemd unit file.
+  become: yes
+  ansible.builtin.template:
+      src: templates/node_exporter.j2
+      dest: /etc/init.d/node_exporter
+      mode: 0755
+  notify:
+      - restart_node_exporter
+      - set_node_exporter_at_boot
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Verify node_exporter is responding to requests.
+  ansible.builtin.uri:
+      url: "http://localhost:{{ node_exporter_port }}/"
+      return_content: true
+  register: metrics_output
+  failed_when: "'Metrics' not in metrics_output.content"

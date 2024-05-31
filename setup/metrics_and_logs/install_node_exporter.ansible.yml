@@ -1,0 +1,47 @@
+---
+- name: Install and configure the node_exporter service
+  hosts: all, !mercury-fs-01, !idris-hv-01
+
+  handlers:
+      - name: Import handlers
+        ansible.builtin.import_tasks:
+            file: "{{ playbook_dir }}/install_node_exporter.modules/handlers/main.ansible.yml"
+
+  tasks:
+      - name: Get latest version of node_exporter
+        ansible.builtin.import_tasks:
+            file: "{{ playbook_dir }}/install_node_exporter.modules/get_latest_version.ansible.yml"
+
+      - name: Set node_exporter arguments
+        ansible.builtin.set_fact:
+            node_exporter_options: --collector.systemd --collector.processes
+
+      - name: Install node_exporter
+        ansible.builtin.import_role:
+            name: geerlingguy.node_exporter
+        vars:
+            node_exporter_version: latest
+            node_exporter_host: 0.0.0.0
+            node_exporter_port: 9200
+            node_exporter_state: started
+            node_exporter_enabled: true
+        become: yes
+        when: ansible_os_family != 'Alpine'
+
+      - name: Install node_exporter on Alpine based systems
+        ansible.builtin.import_tasks:
+            file: "{{ playbook_dir }}/install_node_exporter.modules/manual_install.ansible.yml"
+        vars:
+            node_exporter_bin_path: /usr/local/bin/node_exporter
+            node_exporter_host: 0.0.0.0
+            node_exporter_port: 9200
+        when: ansible_os_family == 'Alpine'
+
+      - name: Open firewall ports for node_exporter
+        ansible.builtin.include_tasks:
+            file: "{{ playbook_dir }}/install_node_exporter.modules/open_firewall_ports.ansible.yml"
+        vars:
+            services:
+                - service_name: node_exporter
+                  service_port: 9200
+                  service_protocol: tcp

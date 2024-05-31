@@ -1,0 +1,15 @@
+#!/sbin/openrc-run
+supervisor=supervise-daemon
+
+name="NodeExporter"
+description="Prometheus exporter for hardware and OS metrics exposed by *NIX kernels, written in Go with pluggable metric collectors."
+
+command="{{ node_exporter_bin_path }}"
+command_args="--web.listen-address={{ node_exporter_host }}:{{ node_exporter_port }} {{ node_exporter_options | default('') }}"
+command_user="node_exporter:node_exporter"
+command_background="yes"
+
+depend() {
+	need net
+	after firewall
+}

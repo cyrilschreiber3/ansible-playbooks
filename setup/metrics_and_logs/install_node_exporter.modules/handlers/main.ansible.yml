@@ -1,0 +1,15 @@
+---
+- name: Restart node_exporter
+  become: yes
+  ansible.builtin.service:
+      name: node_exporter
+      state: restarted
+      enabled: yes
+  listen: restart_node_exporter
+
+- name: Ensure node_exporter is enabled at boot.
+  become: yes
+  ansible.builtin.service:
+      name: node_exporter
+      state: started
+  listen: set_node_exporter_at_boot
