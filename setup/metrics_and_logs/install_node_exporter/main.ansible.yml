@@ -10,7 +10,7 @@
   tasks:
       - name: Get latest version of node_exporter
         ansible.builtin.import_tasks:
-            file: "{{ playbook_dir }}/get_latest_version.ansible.yml"
+            file: "{{ playbook_dir }}/tasks/get_latest_version.ansible.yml"
 
       - name: Set node_exporter arguments
         ansible.builtin.set_fact:
@@ -30,7 +30,7 @@
 
       - name: Install node_exporter on Alpine based systems
         ansible.builtin.import_tasks:
-            file: "{{ playbook_dir }}/manual_install.ansible.yml"
+            file: "{{ playbook_dir }}/tasks/manual_install.ansible.yml"
         vars:
             node_exporter_bin_path: /usr/local/bin/node_exporter
             node_exporter_host: 0.0.0.0
@@ -39,7 +39,7 @@
 
       - name: Open firewall ports for node_exporter
         ansible.builtin.include_tasks:
-            file: "{{ playbook_dir }}/open_firewall_ports.ansible.yml"
+            file: "{{ playbook_dir }}/tasks/open_firewall_ports.ansible.yml"
         vars:
             services:
                 - service_name: node_exporter
