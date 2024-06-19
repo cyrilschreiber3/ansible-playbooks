@@ -25,6 +25,7 @@
             node_exporter_port: 9200
             node_exporter_state: started
             node_exporter_enabled: true
+            node_exporter_arch: "{{ (ansible_architecture == 'aarch64') | ternary('arm64', 'amd64') }}"
         become: yes
         when: ansible_os_family != 'Alpine'
 
