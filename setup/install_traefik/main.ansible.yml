@@ -11,6 +11,7 @@
       - name: Include vars
         ansible.builtin.include_vars:
             file: "{{ playbook_dir }}/vars/main.ansible.yml"
+        no_log: true
 
       - name: Get latest and current versions of traefik
         ansible.builtin.import_tasks:
