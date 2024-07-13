@@ -1,0 +1,15 @@
+---
+- name: Restart Traefik
+  become: yes
+  ansible.builtin.service:
+      name: traefik
+      state: restarted
+      enabled: yes
+  listen: restart_traefik
+
+- name: Ensure Traefik is enabled at boot.
+  become: yes
+  ansible.builtin.service:
+      name: traefik
+      state: started
+  listen: set_traefik_at_boot

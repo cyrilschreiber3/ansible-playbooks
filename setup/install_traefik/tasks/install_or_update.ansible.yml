@@ -1,0 +1,95 @@
+---
+- name: Install prerequisites
+  become: yes
+  ansible.builtin.package:
+      name: "{{ item }}"
+      state: present
+  with_items:
+      - wget
+      - curl
+      - gzip
+      - tar
+
+- name: Create binary archive directory
+  become: yes
+  ansible.builtin.file:
+      path: /root/.traefik-old
+      state: directory
+      mode: 0755
+  when: >
+      traefik_version_check.stdout is defined
+      and traefik_current_version not in traefik_latest_version
+
+- name: Copy existing traefik binary to archive directory
+  become: yes
+  ansible.builtin.copy:
+      src: "{{ traefik_bin_path }}"
+      dest: /root/.traefik-old/traefik-{{ traefik_current_version }}
+      mode: 0755
+      remote_src: true
+  when: >
+      traefik_version_check.stdout is defined
+      and traefik_current_version not in traefik_latest_version
+
+- name: Set arch parameter
+  ansible.builtin.set_fact:
+      node_exporter_arch: "{{ (ansible_architecture == 'x86_64') | ternary('amd64', 'arm64') }}"
+  when: traefik_arch is not defined
+
+- name: Set traefik_download_url
+  ansible.builtin.set_fact:
+      traefik_download_url: "https://github.com/traefik/traefik/releases/download/v{{ traefik_latest_version }}/traefik_v{{ traefik_latest_version }}_linux_{{ traefik_arch }}.tar.gz" # noqa: yaml[line-length]
+
+- name: Download and unarchive traefik into temporary location.
+  ansible.builtin.unarchive:
+      src: "{{ traefik_download_url }}"
+      dest: /tmp
+      remote_src: true
+      mode: 0755
+  when: >
+      traefik_version_check.stdout is not defined
+      or traefik_current_version not in traefik_latest_version
+  register: traefik_download_check
+
+- name: Move traefik binary into place.
+  become: yes
+  ansible.builtin.copy:
+      src: "/tmp/traefik"
+      dest: "{{ traefik_bin_path }}"
+      mode: 0755
+      remote_src: true
+  notify: restart_traefik
+  when: >
+      traefik_version_check.stdout is not defined
+      or traefik_current_version not in traefik_latest_version
+
+- name: Copy the traefik OpenRC init file.
+  become: yes
+  ansible.builtin.template:
+      src: templates/traefik-init.j2
+      dest: /etc/init.d/traefik
+      mode: 0755
+  notify:
+      - restart_traefik
+      - set_traefik_at_boot
+  when: ansible_os_family == 'Alpine'
+
+- name: Copy the traefik OpenRC config file.
+  become: yes
+  ansible.builtin.template:
+      src: templates/traefik-conf.j2
+      dest: /etc/conf.d/traefik
+      mode: 0755
+  notify:
+      - restart_traefik
+      - set_traefik_at_boot
+  when: ansible_os_family == 'Alpine'
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Verify traefik is up and running.
+  ansible.builtin.command: /usr/sbin/traefik healthcheck
+  register: healthcheck_output
+  changed_when: false
+  failed_when: "'OK:' not in healthcheck_output.stdout"

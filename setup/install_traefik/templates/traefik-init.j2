@@ -1,0 +1,24 @@
+#!/sbin/openrc-run
+supervisor=supervise-daemon
+
+export INFOMANIAK_ACCESS_TOKEN={{ infomaniak_api_key }}
+export LEGO_DISABLE_CNAME_SUPPORT=true
+
+name="Traefik"
+description="Modern reverse proxy and load balancer"
+
+command="{{ traefik_bin_path }}"
+command_args="$traefik_opts"
+command_user="root:root"
+
+depend() {
+	need net
+	after firewall
+}
+
+description_healthcheck="Check health status by calling /ping endpoint"
+healthcheck_timer=30
+
+healthcheck() {
+        $command healthcheck >/dev/null
+}

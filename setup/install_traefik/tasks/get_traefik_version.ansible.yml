@@ -1,0 +1,29 @@
+- name: Determine latest GitHub release (local) # noqa: run-once[task]
+  delegate_to: localhost
+  ansible.builtin.uri:
+      url: "https://api.github.com/repos/traefik/traefik/releases/latest"
+      body_format: json
+  register: _github_release
+  until: _github_release.status == 200
+  run_once: true
+  retries: 5
+  when: true
+
+- name: Set traefik_latest_version
+  ansible.builtin.set_fact:
+      traefik_latest_version: "{{ _github_release.json.tag_name
+          | regex_replace('^v?([0-9\\.]+)$', '\\1') }}"
+  when: _github_release.status == 200
+
+- name: Run traefik version command
+  ansible.builtin.command: /usr/sbin/traefik version
+  changed_when: false
+  register: traefik_version_check
+
+- name: Set traefik_current_version
+  ansible.builtin.set_fact:
+      traefik_current_version: "{{ traefik_version_check.stdout | regex_search('Version:\\s+([\\d\\.]+)', '\\1') | first }}"
+
+- name: Set traefik_arch
+  ansible.builtin.set_fact:
+      traefik_arch: "{{ traefik_version_check.stdout | regex_search('OS/Arch:\\s+linux/([\\w]+)', '\\1') | first }}"
