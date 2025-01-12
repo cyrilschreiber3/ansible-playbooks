@@ -1,0 +1,13 @@
+---
+- name: Copy SSH keys to all hosts
+  hosts: all
+
+  tasks:
+    - name: Set authorized keys taken from url
+      ansible.posix.authorized_key:
+        user: "{{ item }}"
+        state: present
+        key: https://github.com/cyrilschreiber3.keys
+      with_items:
+        - "{{ ansible_user }}"
+        - root
