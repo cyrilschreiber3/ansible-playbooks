@@ -1,0 +1,27 @@
+---
+- name: Configure Debian servers
+  hosts: debian_servers
+  gather_facts: true
+
+  handlers:
+    - name: Import handlers
+      ansible.builtin.import_tasks:
+        file: "{{ playbook_dir }}/handlers/main.ansible.yml"
+
+  # vars:
+
+  tasks:
+    - name: Install basic packages
+      become: true
+      ansible.builtin.apt:
+        name:
+          - xz-utils
+        state: present
+
+    - name: Add user to docker group
+      become: true
+      ansible.builtin.user:
+        name: "{{ ansible_user_id }}"
+        groups: docker
+        append: yes
+      when: "'docker_servers' in group_names"
