@@ -1,7 +1,7 @@
 ---
 - name: Install and configure the Zabbix agent
   # hosts: all, !mercury-fs-01, !idris-hv-01
-  hosts: rhel_servers
+  hosts: debian_servers
   gather_facts: true
 
   handlers:
@@ -38,10 +38,15 @@
           {% set groups = groups + [ansible_distribution] %}
           {{ groups | unique | join(',') }}
 
-    - name: Install the Zabbix agent
+    - name: Install the Zabbix agent for RedHat
       ansible.builtin.include_tasks:
         file: "{{ playbook_dir }}/tasks/manual_install_rhel.ansible.yml"
       when: ansible_os_family == "RedHat"
+
+    - name: Install the Zabbix agent for Debian
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/tasks/manual_install_debian.ansible.yml"
+      when: ansible_os_family == "Debian"
 
     - name: Copy the Zabbix agent configuration file
       become: yes
