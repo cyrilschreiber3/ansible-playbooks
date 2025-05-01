@@ -1,0 +1,20 @@
+---
+- name: Clean dnf repository metadata # noqa:no-changed-when
+  become: yes
+  ansible.builtin.command: dnf clean metadata
+  listen: dnf_clean_metadata
+
+- name: Restart Zabbix agent
+  become: yes
+  ansible.builtin.service:
+    name: zabbix-agent{{ agent_variant }}
+    state: restarted
+    enabled: yes
+  listen: restart_zabbix_agent
+
+- name: Ensure Zabbix is enabled at boot.
+  become: yes
+  ansible.builtin.service:
+    name: zabbix-agent{{ agent_variant }}
+    state: started
+  listen: set_zabbix_at_boot

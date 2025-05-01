@@ -1,0 +1,55 @@
+---
+- name: Check if firewalld is installed
+  ansible.builtin.stat:
+      path: /usr/sbin/firewalld
+  register: firewalld_status
+
+- name: Check if ufw is installed
+  ansible.builtin.stat:
+      path: /usr/sbin/ufw
+  register: ufw_status
+
+- name: Check if iptables is installed
+  ansible.builtin.stat:
+      path: /usr/sbin/iptables
+  register: iptables_status
+
+- name: Open ports with firewalld
+  become: yes
+  ansible.posix.firewalld:
+      port: "{{ item.service_port }}/{{ item.service_protocol }}"
+      permanent: yes
+      state: enabled
+      immediate: yes
+  with_items: "{{ services }}"
+  register: firewalld_result
+  when: firewalld_status.stat.exists
+
+- name: Open ports with ufw
+  become: yes
+  community.general.ufw:
+      rule: allow
+      port: "{{ item.service_port }}"
+      proto: "{{ item.service_protocol }}"
+  with_items: "{{ services }}"
+  when: ufw_status.stat.exists
+
+- name: Enable ufw
+  become: yes
+  community.general.ufw:
+      state: enabled
+  when: ufw_status.stat.exists
+
+- name: Open ports with iptables
+  become: yes
+  ansible.builtin.iptables:
+      chain: INPUT
+      destination_port: "{{ item.service_port }}"
+      jump: ACCEPT
+  with_items: "{{ services }}"
+  when: iptables_status.stat.exists and not firewalld_status.stat.exists and not ufw_status.stat.exists
+
+- name: Save iptables rules # noqa: command-instead-of-module no-changed-when
+  become: yes
+  ansible.builtin.command: service iptables save
+  when: iptables_status.stat.exists and not firewalld_status.stat.exists and not ufw_status.stat.exists
