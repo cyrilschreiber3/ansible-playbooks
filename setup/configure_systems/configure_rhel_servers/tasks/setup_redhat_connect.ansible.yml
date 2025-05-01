@@ -1,0 +1,42 @@
+---
+- name: Activate Red Hat subscription
+  become: true
+  community.general.redhat_subscription:
+    state: present
+    activationkey: "{{ redhat_activation_key }}"
+    org_id: "{{ redhat_org_id }}"
+
+- name: Configure DNF
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/tasks/setup_dnf.ansible.yml"
+
+- name: Install Red Hat Connect
+  become: true
+  ansible.builtin.dnf:
+    name: rhc
+    state: present
+
+- name: Get RHC status
+  become: true
+  ansible.builtin.command:
+    cmd: rhc status
+  register: rhc_status
+  changed_when: false
+
+- name: Enable RHC
+  become: true
+  ansible.builtin.command:
+    cmd: rhc connect --activation-key {{ redhat_activation_key }} --organization {{ redhat_org_id }}
+  register: rhc_connect
+  when: "'Not connected to Red Hat Insights' in rhc_status.stdout or 'The Remote Host Configuration daemon is inactive' in rhc_status.stdout"
+  failed_when: "'Connected to Red Hat Insights' not in rhc_connect.stdout or 'Activated the Remote Host Configuration daemon' not in rhc_connect.stdout"
+  changed_when: true
+
+- name: Set RHC reconnect delay
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/rhc/config.toml
+    regexp: "^mqtt-reconnect-delay = "
+    line: "mqtt-reconnect-delay = '10s'"
+  notify:
+    - restart-rhc

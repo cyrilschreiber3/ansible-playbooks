@@ -1,0 +1,26 @@
+---
+- name: Clean yum repository metadata # noqa:no-changed-when
+  ansible.builtin.command: yum clean metadata
+  listen: yum-clean-metadata
+
+- name: Prompt for reboot # noqa:ignore-errors
+  ansible.builtin.debug:
+    msg: "Reboot is required to apply changes."
+  changed_when: false
+  failed_when: true
+  ignore_errors: true
+  listen: reboot-needed
+
+- name: Import EPEL GPG key
+  become: true
+  ansible.builtin.rpm_key:
+    state: present
+    key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-{{ ansible_distribution_major_version }}
+  listen: import-epel-gpg-key
+
+- name: Restart RHC
+  become: true
+  ansible.builtin.systemd:
+    name: rhcd
+    state: restarted
+  listen: restart-rhc

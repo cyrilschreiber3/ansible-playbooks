@@ -1,0 +1,51 @@
+---
+- name: Get subscription status
+  become: true
+  ansible.builtin.command:
+    cmd: subscription-manager status
+  register: subscription_status
+  changed_when: false
+
+- name: Get enabled repositories
+  become: true
+  ansible.builtin.command:
+    cmd: dnf repolist enabled
+  register: enabled_repos
+  changed_when: false
+
+- name: Get repositories to enable
+  ansible.builtin.set_fact:
+    repos_to_enable: |
+      {% set baseos_repo = 'rhel-' + ansible_distribution_major_version + '-for-' + ansible_architecture + '-baseos-rpms' %}
+      {% set appstream_repo = 'rhel-' + ansible_distribution_major_version + '-for-' + ansible_architecture + '-appstream-rpms' %}
+      {% set codeready_repo = 'codeready-builder-for-rhel-' + ansible_distribution_major_version + '-' + ansible_architecture + '-rpms' %}
+      {% set repos = [] %}
+      {% if baseos_repo not in enabled_repos.stdout %}
+      {% set repos = repos + [baseos_repo] %}
+      {% endif %}
+      {% if appstream_repo not in enabled_repos.stdout %}
+      {% set repos = repos + [appstream_repo] %}
+      {% endif %}
+      {% if codeready_repo not in enabled_repos.stdout %}
+      {% set repos = repos + [codeready_repo] %}
+      {% endif %}
+      {{ repos }}
+
+- name: Enable RHEL repositories
+  become: true
+  community.general.rhsm_repository:
+    name: "{{ repos_to_enable }}"
+    state: enabled
+  when: '"Content Access Mode is set to Simple Content Access." in subscription_status.stdout and repos_to_enable | length > 0'
+  notify: yum-clean-metadata
+
+- name: Install EPEL repository
+  become: true
+  ansible.builtin.yum_repository:
+    name: epel
+    description: EPEL YUM repo
+    state: present
+    baseurl: https://dl.fedoraproject.org/pub/epel/{{ ansible_distribution_major_version }}/Everything/{{ ansible_architecture }}/
+  notify:
+    - import-epel-gpg-key
+    - yum-clean-metadata
