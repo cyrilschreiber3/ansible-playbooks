@@ -7,7 +7,7 @@
 - name: Install the Zabbix agent
   become: yes
   ansible.builtin.apt:
-    name: zabbix-agent2
+    name: zabbix-agent{{ agent_variant_version | trim }}
     state: present
     update_cache: yes
   notify:

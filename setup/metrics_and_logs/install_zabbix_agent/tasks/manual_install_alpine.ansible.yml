@@ -1,0 +1,10 @@
+---
+- name: Install Zabbix agent
+  become: yes
+  community.general.apk:
+    name: zabbix-agent{{ agent_variant_version | trim }}
+    state: present
+    update_cache: yes
+  notify:
+    - restart_zabbix_agent
+    - set_zabbix_at_boot

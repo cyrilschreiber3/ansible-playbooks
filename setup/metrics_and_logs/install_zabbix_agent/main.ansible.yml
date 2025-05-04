@@ -1,7 +1,7 @@
 ---
 - name: Install and configure the Zabbix agent
   # hosts: all, !mercury-fs-01, !idris-hv-01
-  hosts: centos_servers
+  hosts: alpine_servers
   gather_facts: true
 
   handlers:
@@ -17,6 +17,11 @@
     agent_param_serveractive: "" # address of Zabbix server to connect using active checks;
     agent_param_listenip: 0.0.0.0 # address for Zabbix agent to listen on;
     agent_param_listenport: 10050 # port for Zabbix agent to listen on;
+    agent_variant_version: |
+      {% if agent_variant >= 2 %}
+        {% set version = agent_variant %}
+      {% endif %}
+      {{ version | default('') }}
 
   tasks:
     - name: Extend group_names based on server characteristics
@@ -53,6 +58,11 @@
         file: "{{ playbook_dir }}/tasks/manual_install_debian.ansible.yml"
       when: ansible_os_family == "Debian"
 
+    - name: Install the Zabbix agent for Alpine
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/tasks/manual_install_alpine.ansible.yml"
+      when: ansible_os_family == "Alpine"
+
     - name: Copy the Zabbix agent configuration file
       become: yes
       ansible.builtin.template:
@@ -82,6 +92,21 @@
         owner: root
         group: root
         mode: 0440
+      when: ansible_os_family != "Alpine"
+      notify:
+        - restart_zabbix_agent
+
+    - name: Create sudoers file for Zabbix user (Alpine)
+      become: yes
+      ansible.builtin.copy:
+        dest: /etc/doas.d/zabbix.conf
+        content: |
+          permit persist zabbix
+          permit nopass zabbix as root cmd *
+        owner: root
+        group: root
+        mode: 0440
+      when: ansible_os_family == "Alpine"
       notify:
         - restart_zabbix_agent
 

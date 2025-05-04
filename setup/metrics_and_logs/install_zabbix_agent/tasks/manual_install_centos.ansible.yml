@@ -27,7 +27,7 @@
 - name: Install Zabbix agent
   become: yes
   ansible.builtin.dnf:
-    name: zabbix-agent{{ agent_variant }}
+    name: zabbix-agent{{ agent_variant_version | trim }}
     state: present
   notify:
     - restart_zabbix_agent
