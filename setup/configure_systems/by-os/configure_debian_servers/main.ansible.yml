@@ -1,6 +1,6 @@
 ---
 - name: Configure Debian servers
-  hosts: debian_servers
+  hosts: debian_servers !linux_containers
   gather_facts: true
 
   handlers:
