@@ -1,0 +1,20 @@
+---
+- name: Configure secondary DNS server Mantis-DNS-02
+  hosts: mantis-dns-02
+  gather_facts: true
+
+  handlers:
+    - name: Import handlers
+      ansible.builtin.import_tasks:
+        file: "{{ playbook_dir }}/handlers/main.ansible.yml"
+
+  tasks:
+    - name: Prerequisites
+      block:
+        - name: Install packages
+          become: true
+          ansible.builtin.apt:
+            name:
+              - syncthing
+            update_cache: true
+            state: present
