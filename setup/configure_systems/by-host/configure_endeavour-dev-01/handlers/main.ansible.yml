@@ -1,0 +1,8 @@
+---
+- name: Restart tunnel service
+  ansible.builtin.systemd_service:
+    name: code-tunnel
+    state: restarted
+    enabled: true
+    daemon_reload: true
+  listen: restart_codetunnel

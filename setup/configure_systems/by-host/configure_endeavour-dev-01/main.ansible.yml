@@ -1,0 +1,206 @@
+---
+- name: Configure dev LXC Endeavour-DEV-01
+  hosts: endeavor-dev-01
+  gather_facts: true
+
+  handlers:
+    - name: Import handlers
+      ansible.builtin.import_tasks:
+        file: "{{ playbook_dir }}/handlers/main.ansible.yml"
+
+  # vars:
+
+  tasks:
+    - name: Prerequisites
+      block:
+        - name: Install basic packages
+          ansible.builtin.apt:
+            name:
+              - curl
+              - dbus
+              - dbus-user-session
+              - ufw
+              - unzip
+              - zsh
+            update_cache: true
+            state: present
+
+    - name: Network configuration
+      block:
+        - name: Allow OpenSSH in UFW
+          community.general.ufw:
+            rule: allow
+            name: "OpenSSH"
+
+        - name: Set logging for UFW
+          community.general.ufw:
+            logging: "on"
+
+        - name: Enable UFW
+          community.general.ufw:
+            state: enabled
+
+    - name: Configure Shell # add plugins to zsh
+      block:
+        - name: Set Zsh as default shell # noqa: no-changed-when
+          ansible.builtin.command:
+            cmd: chsh -s /usr/bin/zsh
+          when: ansible_user_shell != '/usr/bin/zsh'
+
+        - name: Add .local/bin to PATH
+          ansible.builtin.lineinfile:
+            path: /root/.zshrc
+            line: "export PATH=$PATH:/root/.local/bin"
+            create: true
+            owner: root
+            group: root
+            mode: "0644"
+
+        - name: Stat oh-my-posh
+          ansible.builtin.stat:
+            path: /root/.local/bin/oh-my-posh
+          register: oh_my_posh_stat
+
+        - name: Get current Oh My Posh version
+          ansible.builtin.shell: |
+            /root/.local/bin/oh-my-posh version
+          changed_when: false
+          when: oh_my_posh_stat.stat.exists
+          register: current_oh_my_posh_version
+
+        - name: Get latest Oh My Posh release
+          ansible.builtin.uri:
+            url: "https://api.github.com/repos/JanDeDobbeleer/oh-my-posh/releases/latest"
+            body_format: json
+          register: oh_my_posh_release
+          when: oh_my_posh_stat.stat.exists
+
+        - name: Set oh_my_posh_latest_version
+          ansible.builtin.set_fact:
+            oh_my_posh_latest_version: "{{ oh_my_posh_release.json.tag_name
+              | regex_replace('^v?([0-9\\.]+)$', '\\1') }}"
+          when: oh_my_posh_release is defined and oh_my_posh_release.status == 200
+
+        - name: Download Oh My Posh install script
+          ansible.builtin.get_url:
+            url: https://ohmyposh.dev/install.sh
+            dest: /tmp/ohmyposh_install.sh
+            mode: "0755"
+          when: not oh_my_posh_stat.stat.exists or (oh_my_posh_release is defined and current_oh_my_posh_version.stdout != oh_my_posh_latest_version)
+
+        - name: Install Oh My Posh
+          ansible.builtin.shell: |
+            /tmp/ohmyposh_install.sh
+          args:
+            executable: /bin/bash
+          changed_when: true
+          when: not oh_my_posh_stat.stat.exists or (oh_my_posh_release is defined and current_oh_my_posh_version.stdout != oh_my_posh_latest_version)
+
+        - name: Create Oh My Posh config directory
+          ansible.builtin.file:
+            path: /root/.config/oh-my-posh/themes
+            state: directory
+            mode: "0755"
+            owner: root
+            group: root
+
+        - name: Download the latest OMP config file
+          ansible.builtin.get_url:
+            url: https://raw.githubusercontent.com/cyrilschreiber3/nixconfig/refs/heads/master/modules/dotfiles/omp/p10k.yml
+            dest: /root/.config/oh-my-posh/themes/p10k.omp.yml
+            mode: "0644"
+
+        - name: Set Oh My Posh theme
+          ansible.builtin.lineinfile:
+            path: /root/.zshrc
+            line: eval "$(oh-my-posh init zsh --config /root/.config/oh-my-posh/themes/p10k.omp.yml)"
+            insertafter: export PATH=$PATH:/root/.local/bin
+
+    - name: Configure Nix # TODO: Use nix declatatively
+      block:
+        - name: Install Nix
+          ansible.builtin.import_tasks:
+            file: "{{ playbook_dir }}/tasks/install-nix.ansible.yml"
+
+        - name: Source Nix profile in .zshrc
+          ansible.builtin.lineinfile:
+            path: /root/.zshrc
+            line: |
+              # Nix
+              if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
+                . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
+              fi
+              # End Nix
+            insertbefore: EOF
+
+        - name: Install terminal fonts
+          block:
+            - name: Check if fonts are already installed
+              ansible.builtin.shell: |
+                . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+                nix-env -q --installed | grep -E 'nerd-fonts-meslo-lg|nerd-fonts-jetbrains-mono'
+              register: fonts_installed
+              ignore_errors: true
+              changed_when: false
+
+            - name: Install missing fonts # noqa: no-changed-when
+              when: fonts_installed.rc != 0
+              ansible.builtin.shell: |
+                . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+                nix-env -iA {{ item }}
+              with_items:
+                - nixpkgs.nerd-fonts.meslo-lg
+                - nixpkgs.nerd-fonts.jetbrains-mono
+
+    - name: Configure VSCode tunnel server
+      block:
+        - name: Stat code
+          ansible.builtin.stat:
+            path: /usr/local/bin/code
+          register: code_stat
+
+        - name: Get current VSCode cli version # noqa: risky-shell-pipe
+          ansible.builtin.shell: |
+            code --version | awk '{print $2}'
+          changed_when: false
+          when: code_stat.stat.exists
+          register: current_vscode_version
+
+        - name: Get latest version of VSCode cli
+          ansible.builtin.uri:
+            url: "https://update.code.visualstudio.com/api/releases/stable"
+            body_format: json
+            return_content: true
+            method: GET
+          register: vscode_versions
+
+        - name: Install VSCode cli
+          when: (not code_stat.stat.exists) or current_vscode_version.stdout != vscode_versions.json[0]
+          block:
+            - name: Download VSCode cli
+              ansible.builtin.get_url:
+                url: "https://update.code.visualstudio.com/{{ vscode_version }}/cli-linux-x64/stable"
+                dest: "/tmp/vscode_cli_{{ vscode_version }}.tar.gz"
+                mode: "0644"
+
+            - name: Extract VSCode cli
+              ansible.builtin.unarchive:
+                src: "/tmp/vscode_cli_{{ vscode_version }}.tar.gz"
+                dest: "/opt"
+                mode: "0755"
+                remote_src: true
+
+            - name: Symlink VSCode cli
+              ansible.builtin.file:
+                src: "/opt/code"
+                dest: /usr/local/bin/code
+                state: link
+
+            - name: Create systemd service for VSCode tunnel
+              ansible.builtin.template:
+                src: "{{ playbook_dir }}/templates/code-tunnel.service.j2"
+                dest: /etc/systemd/system/code-tunnel.service
+                mode: "0644"
+                owner: root
+                group: root
+              notify: restart_codetunnel

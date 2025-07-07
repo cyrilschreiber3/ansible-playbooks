@@ -1,0 +1,12 @@
+[Unit]
+Description=Starts a VSCode tunnel server
+After=network.target
+Wants=network-online.target
+
+[Service]
+Restart=always
+Type=simple
+ExecStart=/usr/local/bin/code tunnel
+
+[Install]
+WantedBy=multi-user.target
