@@ -1,0 +1,24 @@
+---
+- name: Standard DNS servers
+  ansible.builtin.set_fact:
+    dns_servers: |
+      nameserver 10.1.1.51
+      nameserver 192.168.1.13
+      nameserver 10.1.1.52
+      nameserver 1.1.1.1
+
+- name: Alternate DNS servers for nodes outside the Unify network
+  ansible.builtin.set_fact:
+    dns_servers: |
+      nameserver 192.168.1.13
+      nameserver 10.1.1.51
+      nameserver 10.1.1.52
+      nameserver 1.1.1.1
+  when: ansible_default_ipv4.network == "192.168.1.0" and ansible_hostname != "mantis-dns-02"
+
+- name: Configure DNS servers
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/resolv.conf
+    line: "{{ dns_servers }}"
+    state: present

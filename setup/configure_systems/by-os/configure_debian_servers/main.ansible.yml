@@ -1,6 +1,6 @@
 ---
 - name: Configure Debian servers
-  hosts: debian_servers !linux_containers
+  hosts: debian_servers
   gather_facts: true
 
   handlers:
@@ -25,3 +25,7 @@
         groups: docker
         append: yes
       when: "'docker_servers' in group_names"
+
+    - name: Configure DNS servers
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/../../by-module/network/configure_dns_servers/configure_dns_server.ansible.yml"
