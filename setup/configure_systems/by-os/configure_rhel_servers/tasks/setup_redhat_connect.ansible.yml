@@ -8,7 +8,7 @@
 
 - name: Configure DNF
   ansible.builtin.include_tasks:
-    file: "{{ playbook_dir }}/tasks/setup_dnf.ansible.yml"
+    file: "{{ playbook_dir }}/setup_dnf.ansible.yml"
 
 - name: Install Red Hat Connect
   become: true
