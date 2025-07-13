@@ -1,0 +1,127 @@
+typeset -U path cdpath fpath manpath
+for profile in ${(z)NIX_PROFILES}; do
+  fpath+=($profile/share/zsh/site-functions $profile/share/zsh/$ZSH_VERSION/functions $profile/share/zsh/vendor-completions)
+done
+
+HELPDIR="$HOME/.nix-profile/share/zsh/$ZSH_VERSION/help"
+
+ZSH_PLUGINS_DIR="$HOME/.nix-profile/share/zsh/plugins"
+
+path+="$ZSH_PLUGINS_DIR/zsh-autosuggestions"
+fpath+="$ZSH_PLUGINS_DIR/zsh-autosuggestions"
+
+path+="$ZSH_PLUGINS_DIR/zsh-syntax-highlighting"
+fpath+="$ZSH_PLUGINS_DIR/zsh-syntax-highlighting"
+
+path+="$ZSH_PLUGINS_DIR/zsh-interactive-cd"
+fpath+="$ZSH_PLUGINS_DIR/zsh-interactive-cd"
+
+source "$ZSH_PLUGINS_DIR/zsh-autosuggestions/zsh-autosuggestions.zsh"
+ZSH_AUTOSUGGEST_STRATEGY=(history)
+
+# Oh-My-Zsh configuration
+export ZSH="$HOME/.nix-profile/share/oh-my-zsh"
+
+# Display red dots whilst waiting for completion.
+COMPLETION_WAITING_DOTS="true"
+
+# Chroma plugin config
+ZSH_COLORIZE_TOOL=chroma
+ZSH_COLORIZE_STYLE="tokyonight-night"
+# VSCode plugin
+VSCODE="code"
+# fzf plugin
+DISABLE_FZF_AUTO_COMPLETION="true"
+
+# Prevent less from using pager everytime
+export PAGER="less -F -X"
+
+plugins=(ansible colored-man-pages colorize cp dotenv encode64 extract fzf git rsync screen ssh systemadmin vscode)
+
+source $ZSH/oh-my-zsh.sh
+
+if [[ -f "$ZSH_PLUGINS_DIR/zsh-autosuggestions/zsh-autosuggestions.plugin.zsh" ]]; then
+  source "$ZSH_PLUGINS_DIR/zsh-autosuggestions/zsh-autosuggestions.plugin.zsh"
+fi
+if [[ -f "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting/zsh-syntax-highlighting.plugin.zsh" ]]; then
+  source "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting/zsh-syntax-highlighting.plugin.zsh"
+fi
+if [[ -f "$ZSH_PLUGINS_DIR/zsh-interactive-cd/zsh-interactive-cd.plugin.zsh" ]]; then
+  source "$ZSH_PLUGINS_DIR/zsh-interactive-cd/zsh-interactive-cd.plugin.zsh"
+fi
+
+# History options should be set in .zshrc and after oh-my-zsh sourcing.
+# See https://github.com/nix-community/home-manager/issues/177.
+HISTSIZE="10000"
+SAVEHIST="10000"
+
+HISTFILE="$HOME/.zsh_history"
+
+setopt HIST_FCNTL_LOCK
+unsetopt APPEND_HISTORY
+setopt HIST_IGNORE_DUPS
+unsetopt HIST_IGNORE_ALL_DUPS
+unsetopt HIST_SAVE_NO_DUPS
+unsetopt HIST_FIND_NO_DUPS
+setopt HIST_IGNORE_SPACE
+unsetopt HIST_EXPIRE_DUPS_FIRST
+setopt SHARE_HISTORY
+unsetopt EXTENDED_HISTORY
+setopt autocd
+
+if [[ $options[zle] = on ]]; then
+  source <($HOME/.nix-profile/bin/fzf --zsh)
+fi
+
+# zsh-interactive-cd plugin
+bindkey '^I' zic-completion
+
+# Initialize Oh My Posh
+eval "$(oh-my-posh init zsh --config $HOME/.nix-profile/share/oh-my-posh/themes/p10k.omp.json)"
+
+# For GPG
+export GPG_TTY=$TTY
+
+# Shortcut for nix run
+nr() {
+  local pkg=$1
+  shift
+  nix run "nixpkgs#$pkg" -- "$@"
+}
+
+alias -- ..='cd ..'
+alias -- cd..='cd ..'
+alias -- dev='$HOME/.nix-profile/bin/nom develop --command zsh'
+alias -- ls=lsd
+alias -- ns='nix-shell --run zsh -p'
+alias -- fzf='FZF_DEFAULT_OPTS="--highlight-line \
+--info=inline-right \
+--ansi \
+--layout=reverse \
+--border=none \
+--color=bg+:#283457 \
+--color=bg:#16161e \
+--color=border:#27a1b9 \
+--color=fg:#c0caf5 \
+--color=gutter:#16161e \
+--color=header:#ff9e64 \
+--color=hl+:#2ac3de \
+--color=hl:#2ac3de \
+--color=info:#545c7e \
+--color=marker:#ff007c \
+--color=pointer:#ff007c \
+--color=prompt:#2ac3de \
+--color=query:#c0caf5:regular \
+--color=scrollbar:#27a1b9 \
+--color=separator:#ff9e64 \
+--color=spinner:#ff007c" \
+fzf'
+
+source "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+ZSH_HIGHLIGHT_HIGHLIGHTERS+=(main brackets)
+
+# Nix
+if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
+  . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
+fi
+# End Nix

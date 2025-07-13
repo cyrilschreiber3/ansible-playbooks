@@ -6,3 +6,10 @@
     enabled: true
     daemon_reload: true
   listen: restart_codetunnel
+
+- name: Restart GPG agent # noqa: command-instead-of-shell
+  ansible.builtin.shell: |
+    . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+    gpg-connect-agent reloadagent /bye
+  changed_when: true
+  listen: restart_gpg_agent

@@ -17,11 +17,9 @@
           ansible.builtin.apt:
             name:
               - curl
-              - dbus
-              - dbus-user-session
+              - git
               - ufw
               - unzip
-              - zsh
             update_cache: true
             state: present
 
@@ -40,117 +38,128 @@
           community.general.ufw:
             state: enabled
 
-    - name: Configure Shell # add plugins to zsh
-      block:
-        - name: Set Zsh as default shell # noqa: no-changed-when
-          ansible.builtin.command:
-            cmd: chsh -s /usr/bin/zsh
-          when: ansible_user_shell != '/usr/bin/zsh'
-
-        - name: Add .local/bin to PATH
-          ansible.builtin.lineinfile:
-            path: /root/.zshrc
-            line: "export PATH=$PATH:/root/.local/bin"
-            create: true
-            owner: root
-            group: root
-            mode: "0644"
-
-        - name: Stat oh-my-posh
-          ansible.builtin.stat:
-            path: /root/.local/bin/oh-my-posh
-          register: oh_my_posh_stat
-
-        - name: Get current Oh My Posh version
-          ansible.builtin.shell: |
-            /root/.local/bin/oh-my-posh version
-          changed_when: false
-          when: oh_my_posh_stat.stat.exists
-          register: current_oh_my_posh_version
-
-        - name: Get latest Oh My Posh release
-          ansible.builtin.uri:
-            url: "https://api.github.com/repos/JanDeDobbeleer/oh-my-posh/releases/latest"
-            body_format: json
-          register: oh_my_posh_release
-          when: oh_my_posh_stat.stat.exists
-
-        - name: Set oh_my_posh_latest_version
-          ansible.builtin.set_fact:
-            oh_my_posh_latest_version: "{{ oh_my_posh_release.json.tag_name
-              | regex_replace('^v?([0-9\\.]+)$', '\\1') }}"
-          when: oh_my_posh_release is defined and oh_my_posh_release.status == 200
-
-        - name: Download Oh My Posh install script
-          ansible.builtin.get_url:
-            url: https://ohmyposh.dev/install.sh
-            dest: /tmp/ohmyposh_install.sh
-            mode: "0755"
-          when: not oh_my_posh_stat.stat.exists or (oh_my_posh_release is defined and current_oh_my_posh_version.stdout != oh_my_posh_latest_version)
-
-        - name: Install Oh My Posh
-          ansible.builtin.shell: |
-            /tmp/ohmyposh_install.sh
-          args:
-            executable: /bin/bash
-          changed_when: true
-          when: not oh_my_posh_stat.stat.exists or (oh_my_posh_release is defined and current_oh_my_posh_version.stdout != oh_my_posh_latest_version)
-
-        - name: Create Oh My Posh config directory
-          ansible.builtin.file:
-            path: /root/.config/oh-my-posh/themes
-            state: directory
-            mode: "0755"
-            owner: root
-            group: root
-
-        - name: Download the latest OMP config file
-          ansible.builtin.get_url:
-            url: https://raw.githubusercontent.com/cyrilschreiber3/nixconfig/refs/heads/master/modules/dotfiles/omp/p10k.yml
-            dest: /root/.config/oh-my-posh/themes/p10k.omp.yml
-            mode: "0644"
-
-        - name: Set Oh My Posh theme
-          ansible.builtin.lineinfile:
-            path: /root/.zshrc
-            line: eval "$(oh-my-posh init zsh --config /root/.config/oh-my-posh/themes/p10k.omp.yml)"
-            insertafter: export PATH=$PATH:/root/.local/bin
-
-    - name: Configure Nix # TODO: Use nix declatatively
+    - name: Configure Nix
       block:
         - name: Install Nix
           ansible.builtin.import_tasks:
             file: "{{ playbook_dir }}/tasks/install-nix.ansible.yml"
 
-        - name: Source Nix profile in .zshrc
+        - name: Get Nix profiles
+          ansible.builtin.shell: |
+            . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+            nix profile list --json
+          changed_when: false
+          register: nix_profiles
+
+        - name: Copy Nix profile to root
+          ansible.builtin.copy:
+            src: "{{ playbook_dir }}/nix/"
+            dest: "/etc/nixconfig"
+            owner: "{{ ansible_user }}"
+            group: "{{ ansible_user }}"
+            mode: "0644"
+          register: copy_nix_profile
+
+        - name: Install Nix profile
+          ansible.builtin.shell: |
+            . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+            nix profile install /etc/nixconfig
+          when: nix_profiles is defined and not nix_profiles.stdout | from_json | json_query('elements.nixconfig.active')
+          changed_when: true
+
+        - name: Update Nix profile
+          ansible.builtin.shell: |
+            . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+            nix profile upgrade nixconfig
+          when: nix_profiles is defined and nix_profiles.stdout | from_json | json_query('elements.nixconfig.active') and copy_nix_profile.changed
+          changed_when: true
+
+    - name: Configure Shell
+      block:
+        - name: Set Zsh as default shell
+          ansible.builtin.command:
+            cmd: chsh -s /root/.nix-profile/bin/zsh
+          when: ansible_user_shell != '/root/.nix-profile/bin/zsh'
+          changed_when: true
+
+        - name: Copy Zsh configuration
+          ansible.builtin.template:
+            src: "{{ playbook_dir }}/templates/zshrc.j2"
+            dest: /root/.zshrc
+            owner: "{{ ansible_user }}"
+            group: "{{ ansible_user }}"
+            mode: "0644"
+
+    - name: Configure Git and GPG
+      block:
+        - name: Set Git user name
+          community.general.git_config:
+            name: user.name
+            value: "Cyril Schreiber"
+            scope: global
+
+        - name: Set Git email
+          community.general.git_config:
+            name: user.email
+            value: "contact@cyrilschreiber.ch"
+            scope: global
+
+        - name: Set Git GPG commit signing
+          community.general.git_config:
+            name: commit.gpgsign
+            value: true
+            scope: global
+
+        - name: Set Git GPG tag signing
+          community.general.git_config:
+            name: tag.gpgsign
+            value: true
+            scope: global
+
+        - name: Set GPG allow loopback pinentry
           ansible.builtin.lineinfile:
-            path: /root/.zshrc
-            line: |
-              # Nix
-              if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
-                . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
-              fi
-              # End Nix
-            insertbefore: EOF
+            path: /root/.gnupg/gpg-agent.conf
+            regexp: "^allow-loopback-pinentry"
+            line: allow-loopback-pinentry
+            create: true
+            mode: "0700"
+          notify: restart_gpg_agent
 
-        - name: Install terminal fonts
-          block:
-            - name: Check if fonts are already installed
-              ansible.builtin.shell: |
-                . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-                nix-env -q --installed | grep -E 'nerd-fonts-meslo-lg|nerd-fonts-jetbrains-mono'
-              register: fonts_installed
-              ignore_errors: true
-              changed_when: false
+        - name: Set GPG default cache ttl
+          ansible.builtin.lineinfile:
+            path: /root/.gnupg/gpg-agent.conf
+            regexp: "^default-cache-ttl"
+            line: default-cache-ttl 28800
+            create: true
+            mode: "0700"
+          notify: restart_gpg_agent
 
-            - name: Install missing fonts # noqa: no-changed-when
-              when: fonts_installed.rc != 0
-              ansible.builtin.shell: |
-                . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-                nix-env -iA {{ item }}
-              with_items:
-                - nixpkgs.nerd-fonts.meslo-lg
-                - nixpkgs.nerd-fonts.jetbrains-mono
+        - name: Set GPG max cache ttl
+          ansible.builtin.lineinfile:
+            path: /root/.gnupg/gpg-agent.conf
+            regexp: "^max-cache-ttl"
+            line: max-cache-ttl 86400
+            create: true
+            mode: "0700"
+          notify: restart_gpg_agent
+
+        - name: Set GPG pinentry program
+          ansible.builtin.lineinfile:
+            path: /root/.gnupg/gpg-agent.conf
+            regexp: "^pinentry-program"
+            line: pinentry-program /root/.nix-profile/bin/pinentry-curses
+            create: true
+            mode: "0700"
+          notify: restart_gpg_agent
+
+        - name: Set GPG pinentry mode
+          ansible.builtin.lineinfile:
+            path: /root/.gnupg/gpg-agent.conf
+            regexp: "^pinentry-mode"
+            line: pinentry-mode loopback
+            create: true
+            mode: "0700"
+          notify: restart_gpg_agent
 
     - name: Configure VSCode tunnel server
       block:
@@ -174,8 +183,13 @@
             method: GET
           register: vscode_versions
 
+        - name: Set latest VSCode version
+          ansible.builtin.set_fact:
+            vscode_version: "{{ vscode_versions.json[0] }}"
+
         - name: Install VSCode cli
-          when: (not code_stat.stat.exists) or current_vscode_version.stdout != vscode_versions.json[0]
+          when: (not code_stat.stat.exists) or current_vscode_version.stdout != vscode_version
+          notify: restart_codetunnel
           block:
             - name: Download VSCode cli
               ansible.builtin.get_url:
@@ -203,4 +217,3 @@
                 mode: "0644"
                 owner: root
                 group: root
-              notify: restart_codetunnel
