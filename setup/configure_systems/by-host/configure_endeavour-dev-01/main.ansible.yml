@@ -9,7 +9,7 @@
         file: "{{ playbook_dir }}/handlers/main.ansible.yml"
 
   # vars:
-
+  # TODO: Add MOTD generator
   tasks:
     - name: Prerequisites
       block:
@@ -42,37 +42,11 @@
       block:
         - name: Install Nix
           ansible.builtin.import_tasks:
-            file: "{{ playbook_dir }}/tasks/install-nix.ansible.yml"
-
-        - name: Get Nix profiles
-          ansible.builtin.shell: |
-            . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-            nix profile list --json
-          changed_when: false
-          register: nix_profiles
-
-        - name: Copy Nix profile to root
-          ansible.builtin.copy:
-            src: "{{ playbook_dir }}/nix/"
-            dest: "/etc/nixconfig"
-            owner: "{{ ansible_user }}"
-            group: "{{ ansible_user }}"
-            mode: "0644"
-          register: copy_nix_profile
-
-        - name: Install Nix profile
-          ansible.builtin.shell: |
-            . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-            nix profile install /etc/nixconfig
-          when: nix_profiles is defined and not nix_profiles.stdout | from_json | json_query('elements.nixconfig.active')
-          changed_when: true
-
-        - name: Update Nix profile
-          ansible.builtin.shell: |
-            . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-            nix profile upgrade nixconfig
-          when: nix_profiles is defined and nix_profiles.stdout | from_json | json_query('elements.nixconfig.active') and copy_nix_profile.changed
-          changed_when: true
+            file: "{{ module_dir }}/configure_nix_package_manager.ansible.yml"
+          vars:
+            module_dir: "{{ playbook_dir }}/../../by-module/system/configure_nix_package_manager"
+            configure_bash: true
+            nix_version: 2.29.1
 
     - name: Configure Shell
       block:

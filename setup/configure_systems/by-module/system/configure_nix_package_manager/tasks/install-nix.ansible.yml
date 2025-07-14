@@ -1,7 +1,7 @@
 ---
 - name: Import variables
   ansible.builtin.include_vars:
-    file: "{{ playbook_dir }}/vars/install-nix-vars.ansible.yml"
+    file: "{{ module_dir }}/vars/install-nix-vars.ansible.yml"
 
 - name: Stat nix-daemon.sh
   ansible.builtin.stat:
@@ -17,7 +17,12 @@
   when: nixdaemon_stat.stat.exists
   register: nix_version_output
 
-- name: Set nix version name
+- name: Set target nix version
+  ansible.builtin.set_fact:
+    nix_version: "{{ nix_version | default(2.29.1) }}"
+  when: not (nix_version is defined)
+
+- name: Set nix version on system
   ansible.builtin.set_fact:
     nix_version_on_system: "{{ (nix_version_output.stdout_lines[0] | split(' '))[2] }}"
   when: nixdaemon_stat.stat.exists and nix_version_output.rc == 0
@@ -105,7 +110,7 @@
   ansible.builtin.lineinfile:
     path: /etc/nix/nix.conf
     line: "experimental-features = nix-command flakes"
-  when: flakes
+  when: flakes | default(true) | bool
 
 - name: Add arbritrary nix config
   ansible.builtin.blockinfile:
@@ -120,3 +125,21 @@
     {{ item }}
   changed_when: true
   loop: "{{ nix_commands }}"
+  when: nix_commands is defined
+
+- name: Add nix profile to user's shell configuration
+  ansible.builtin.blockinfile:
+    path: "{{ item }}"
+    backup: yes
+    create: true
+    mode: "0644"
+    marker: "# {mark} Nix profile configuration by Ansible"
+    prepend_newline: true
+    block: |
+      if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
+        . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
+      fi
+  loop:
+    - "{{ ansible_env.HOME }}/.zshrc"
+    - "{{ ansible_env.HOME }}/.bashrc"
+  when: (configure_zsh | default(false) and item.endswith('zshrc')) or (configure_bash | default(false) and item.endswith('bashrc'))
