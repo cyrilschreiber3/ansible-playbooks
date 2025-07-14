@@ -1,0 +1,20 @@
+# Ansible managed file
+
+{% if resolv_conf_search is defined and resolv_conf_search|length > 0 and resolv_conf_search != [''] %}
+search {{ resolv_conf_search | join(' ') }}
+
+{% endif %}
+{% if resolv_conf_options is defined and resolv_conf_options|length > 0 and resolv_conf_options != [''] %}
+options {{ resolv_conf_options | join(' ') }}
+
+{% endif %}
+{% for nameserver in resolv_conf_nameservers %}
+nameserver {{ nameserver }}
+{% endfor %}
+{% if resolv_conf_custom_nameservers is defined and resolv_conf_custom_nameservers|length > 0 %}
+
+# Host-specific nameservers
+{% for nameserver in resolv_conf_custom_nameservers %}
+nameserver {{ nameserver }}
+{% endfor %}
+{% endif %}

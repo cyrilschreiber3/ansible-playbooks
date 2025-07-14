@@ -9,12 +9,20 @@
         file: "{{ playbook_dir }}/handlers/main.ansible.yml"
 
   tasks:
-    - name: Prerequisites
+    # - name: Prerequisites
+    #   block:
+    #     - name: Install packages
+    #       become: true
+    #       ansible.builtin.apt:
+    #         name:
+    #           - syncthing
+    #         update_cache: true
+    #         state: present
+
+    - name: Configure DNS servers
       block:
-        - name: Install packages
-          become: true
-          ansible.builtin.apt:
-            name:
-              - syncthing
-            update_cache: true
-            state: present
+        - name: Standard DNS servers
+          ansible.builtin.import_tasks:
+            file: "{{ module_dir }}/configure_dns_servers.ansible.yml"
+          vars:
+            module_dir: "{{ playbook_dir }}/../../by-module/network/configure_dns_servers"

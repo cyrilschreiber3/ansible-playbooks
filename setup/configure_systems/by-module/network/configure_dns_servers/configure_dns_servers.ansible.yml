@@ -1,0 +1,74 @@
+---
+- name: Set default variables
+  block:
+    - name: Set default DNS servers
+      when: dns_servers is not defined
+      block:
+        - name: Standard DNS servers
+          ansible.builtin.set_fact:
+            dns_servers:
+              - "10.1.1.51"
+              - "192.168.1.13"
+              - "10.1.1.52"
+              - "1.1.1.1"
+
+        - name: Alternate DNS servers for nodes outside the Unify network
+          ansible.builtin.set_fact:
+            dns_servers:
+              - "192.168.1.13"
+              - "10.1.1.51"
+              - "10.1.1.52"
+              - "1.1.1.1"
+          when: ansible_default_ipv4.network == "192.168.1.0" and ansible_hostname != "mantis-dns-02"
+
+    - name: Default search domains
+      ansible.builtin.set_fact:
+        search_domains:
+          - "schreibernet.dev"
+
+    - name: Default options
+      ansible.builtin.set_fact:
+        options:
+          - ""
+
+- name: Parse existing resolv.conf file
+  block:
+    - name: Get current resolv.conf content
+      ansible.builtin.slurp:
+        src: /etc/resolv.conf
+      register: resolv_conf_content
+
+    - name: Extract existing nameservers
+      ansible.builtin.set_fact:
+        existing_nameservers: "{{ (resolv_conf_content.content | b64decode).split('\n') | map('regex_search', '^nameserver .*$') | select('string') | map('regex_replace', '^nameserver ', '') | list }}" # noqa: yaml[line-length]
+
+    - name: Extract existing search
+      ansible.builtin.set_fact:
+        existing_searchdomains: "{{ (resolv_conf_content.content | b64decode).split('\n') | map('regex_search', '^search .*$') | select('string') | first | default('') | regex_replace('^search ', '') | split(' ') }}" # noqa: yaml[line-length]
+
+    - name: Extract existing options
+      ansible.builtin.set_fact:
+        existing_options: "{{ (resolv_conf_content.content | b64decode).split('\n') | map('regex_search', '^options .*$') | select('string') | first | default('') | regex_replace('^options ', '') | split(' ') }}" # noqa: yaml[line-length]
+
+- name: Backup existing resolv.conf
+  become: true
+  ansible.builtin.copy:
+    src: /etc/resolv.conf
+    dest: /etc/resolv.conf.backup_before_ansible
+    remote_src: true
+    mode: "0644"
+  when: resolv_conf_content is defined and resolv_conf_content.content | b64decode | length > 0 and
+    (resolv_conf_content.content | b64decode).split('\n') | length > 0 and
+    (resolv_conf_content.content | b64decode).split('\n') | first != "# Ansible managed file"
+
+- name: Configure DNS servers
+  become: true
+  ansible.builtin.template:
+    src: "{{ module_dir }}/templates/resolv.conf.j2"
+    dest: /etc/resolv.conf
+    mode: "0644"
+  vars:
+    resolv_conf_nameservers: "{{ dns_servers }}"
+    resolv_conf_custom_nameservers: "{{ existing_nameservers | difference(dns_servers) }}"
+    resolv_conf_search: "{{ search_domains + (existing_searchdomains | difference(search_domains)) }}"
+    resolv_conf_options: "{{ options + (existing_options | difference(options)) }}"
