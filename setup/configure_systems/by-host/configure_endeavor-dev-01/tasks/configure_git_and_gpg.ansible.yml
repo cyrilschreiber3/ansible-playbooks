@@ -1,0 +1,69 @@
+---
+- name: Set Git user name
+  community.general.git_config:
+    name: user.name
+    value: "Cyril Schreiber"
+    scope: global
+
+- name: Set Git email
+  community.general.git_config:
+    name: user.email
+    value: "contact@cyrilschreiber.ch"
+    scope: global
+
+- name: Set Git GPG commit signing
+  community.general.git_config:
+    name: commit.gpgsign
+    value: true
+    scope: global
+
+- name: Set Git GPG tag signing
+  community.general.git_config:
+    name: tag.gpgsign
+    value: true
+    scope: global
+
+- name: Set GPG allow loopback pinentry
+  ansible.builtin.lineinfile:
+    path: /root/.gnupg/gpg-agent.conf
+    regexp: "^allow-loopback-pinentry"
+    line: allow-loopback-pinentry
+    create: true
+    mode: "0700"
+  notify: restart_gpg_agent
+
+- name: Set GPG default cache ttl
+  ansible.builtin.lineinfile:
+    path: /root/.gnupg/gpg-agent.conf
+    regexp: "^default-cache-ttl"
+    line: default-cache-ttl 28800
+    create: true
+    mode: "0700"
+  notify: restart_gpg_agent
+
+- name: Set GPG max cache ttl
+  ansible.builtin.lineinfile:
+    path: /root/.gnupg/gpg-agent.conf
+    regexp: "^max-cache-ttl"
+    line: max-cache-ttl 86400
+    create: true
+    mode: "0700"
+  notify: restart_gpg_agent
+
+- name: Set GPG pinentry program
+  ansible.builtin.lineinfile:
+    path: /root/.gnupg/gpg-agent.conf
+    regexp: "^pinentry-program"
+    line: pinentry-program /root/.nix-profile/bin/pinentry-curses
+    create: true
+    mode: "0700"
+  notify: restart_gpg_agent
+
+- name: Set GPG pinentry mode
+  ansible.builtin.lineinfile:
+    path: /root/.gnupg/gpg-agent.conf
+    regexp: "^pinentry-mode"
+    line: pinentry-mode loopback
+    create: true
+    mode: "0700"
+  notify: restart_gpg_agent
