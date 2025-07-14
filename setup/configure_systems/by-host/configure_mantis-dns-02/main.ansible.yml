@@ -8,6 +8,9 @@
       ansible.builtin.import_tasks:
         file: "{{ playbook_dir }}/handlers/main.ansible.yml"
 
+  vars:
+    shared_modules_dir: "{{ playbook_dir }}/../../by-module"
+
   tasks:
     # - name: Prerequisites
     #   block:
@@ -20,9 +23,13 @@
     #         state: present
 
     - name: Configure DNS servers
-      block:
-        - name: Standard DNS servers
-          ansible.builtin.import_tasks:
-            file: "{{ module_dir }}/configure_dns_servers.ansible.yml"
-          vars:
-            module_dir: "{{ playbook_dir }}/../../by-module/network/configure_dns_servers"
+      ansible.builtin.import_tasks:
+        file: "{{ module_dir }}/configure_dns_servers.ansible.yml"
+      vars:
+        module_dir: "{{ shared_modules_dir }}/network/configure_dns_servers"
+
+    - name: Configure MOTD generator
+      ansible.builtin.import_tasks:
+        file: "{{ module_dir }}/configure_motd_generator.ansible.yml"
+      vars:
+        module_dir: "{{ shared_modules_dir }}/system/configure_motd_generator"
