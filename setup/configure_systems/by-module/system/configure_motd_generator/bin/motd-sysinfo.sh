@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+# os available ?
+if [ -f /etc/os-release ]; then
+    source /etc/os-release
+else
+    PRETTY_NAME="Linux"
+fi
+
+# Welcome Message
+printf "\n%s\n" "$(date)"
+printf "%s | %s\n" "$PRETTY_NAME" "$(uname -r)"
+
+# Show Hostname
+printf "\033[1;34m"
+figlet $(hostname --short) -w 120
+printf "\033[0m"
+
+# System Params
+load=$(cat /proc/loadavg | awk '{print $2}')
+memory_usage=$(free -m | awk '/Mem/ { printf("%3.1f%%", $3/($2+1)*100) }')
+memory_total=$(free -g | awk '/Mem/ { printf("%3.0f", $2) }')
+swap_usage=$(free -m | awk '/Swap/ { printf("%3.1f%%", $3/($2+1)*100) }')
+swap_total=$(free -g | awk '/Swap/ { printf("%3.0f", $2) }')
+users=$(users | wc -w)
+
+echo ""
+printf "System load:\t%s\t\tMemory usage:\t%s of %sG\n" $load $memory_usage $memory_total
+printf "Local users:\t%s\t\tSwap usage:\t%s of %sG\n" $users $swap_usage $swap_total
+echo ""
+
+# Get disk usage (use 2s timeout for weak nfs mounts)
+timeout --signal=kill 2s df -h | grep --color=never -E "^(/dev/|Filesystem)"
+
+# empty line
+echo ""
