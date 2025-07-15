@@ -1,0 +1,25 @@
+---
+# tasks file for configure_debian_servers
+- name: Install basic packages
+  become: true
+  ansible.builtin.apt:
+    name:
+      - xz-utils
+    state: present
+
+- name: Add user to docker group
+  become: true
+  ansible.builtin.user:
+    name: "{{ ansible_user_id }}"
+    groups: docker
+    append: yes
+  when: "'docker_servers' in group_names"
+
+- name: Configure DNS servers
+  ansible.builtin.import_role:
+    name: configure_dns_servers
+  when: not 'linux_containers' in group_names
+
+- name: Configure MOTD generator
+  ansible.builtin.import_role:
+    name: configure_motd_generator

@@ -1,0 +1,7 @@
+---
+- name: Configure Debian servers
+  hosts: debian_servers
+  gather_facts: true
+
+  roles:
+    - role: configure_debian_servers
