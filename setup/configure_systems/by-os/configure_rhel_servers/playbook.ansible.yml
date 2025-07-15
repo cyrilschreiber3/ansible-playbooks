@@ -1,0 +1,7 @@
+---
+- name: Configure RHEL servers
+  hosts: rhel_servers
+  gather_facts: true
+
+  roles:
+    - role: configure_rhel_servers
