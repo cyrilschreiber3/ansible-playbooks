@@ -1,6 +1,12 @@
 ---
+nix_version: 2.29.1
 nix_build: nix-{{ nix_version }}-x86_64-linux
 installer_path: https://releases.nixos.org/nix/nix-{{ nix_version }}/{{ nix_build }}.tar.xz
 default_nix_profiles:
   - mainconfig
   - "{{ ansible_hostname | lower | replace('-', '_') }}"
+extra_nix_profiles: []
+flakes: true
+nix_commands: []
+configure_bash: false
+configure_zsh: false

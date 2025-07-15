@@ -1,7 +1,7 @@
 ---
 - name: Install Nix
   ansible.builtin.import_tasks:
-    file: "{{ module_dir }}/tasks/install-nix.ansible.yml"
+    file: "{{ role_path }}/tasks/install-nix.ansible.yml"
 
 - name: Get Nix profiles
   ansible.builtin.shell: |
@@ -12,7 +12,7 @@
 
 - name: Copy Nix profile to root
   ansible.builtin.copy:
-    src: "{{ module_dir }}/nix/"
+    src: "{{ role_path }}/files/nix/"
     dest: "/etc/nixconfig"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
@@ -21,7 +21,7 @@
 
 - name: Define Nix profiles
   ansible.builtin.set_fact:
-    nix_profiles: "{{ default_nix_profiles + (extra_nix_profiles | default([])) }}"
+    nix_profiles: "{{ default_nix_profiles + extra_nix_profiles }}"
 
 - name: Install Nix profiles
   ansible.builtin.shell: |
