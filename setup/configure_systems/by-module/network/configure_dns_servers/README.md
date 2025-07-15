@@ -1,43 +1,66 @@
 configure_dns_servers
 =====================
 
-This role configures DNS servers on Linux systems by managing `/etc/resolv.conf` using Ansible. It supports custom nameservers, search domains, and options for flexible DNS configuration.
+This role configures DNS name resolution on Linux systems by managing the `/etc/resolv.conf` file.
 
 Requirements
 ------------
-- Linux system
-- Sudo privileges for file management
-- Ansible >= 2.18
+
+- Ansible version 2.12+
+- Sudo privileges on the host
 
 Role Variables
 --------------
-- `dns_servers`: List of DNS servers to configure (default: internal Schreibernet and public servers)
-- `search_domains`: List of search domains (default: ["schreibernet.dev"])
-- `options`: List of custom options for `resolv.conf`
 
-See `defaults/main.yml` for all configurable variables.
+### vars/main.yml
+
+None
+
+### defaults/main.yml
+
+- `search_domains`: A list of DNS search domains.
+  - Type: list
+  - Default: `["schreibernet.dev"]`
+- `options`: A list of options for `resolv.conf`.
+  - Type: list
+  - Default: `[]`
+
+### Task-defined Variables
+
+- `dns_servers`: A list of nameserver IP addresses.
+  - Type: list
+  - Default: A list of internal and public DNS servers is dynamically set if the variable is not defined.
 
 Dependencies
 ------------
-None (standalone role)
+
+None.
 
 Example Playbook
 ----------------
-    - hosts: all
-      roles:
-        - role: configure_dns_servers
-          dns_servers:
-            - "8.8.8.8"
-            - "1.1.1.1"
-          search_domains:
-            - "example.com"
-          options:
-            - "timeout:2"
+
+Here is a simple example of how to use this role:
+
+```yaml
+- hosts: all
+  roles:
+    - role: configure_dns_servers
+      vars:
+        dns_servers:
+          - "8.8.8.8"
+          - "1.1.1.1"
+        search_domains:
+          - "example.com"
+        options:
+          - "timeout:2"
+```
 
 License
 -------
-Apache-2.0
+
+Apache 2.0
 
 Author Information
 ------------------
+
 Cyril Schreiber (https://github.com/cyrilschreiber3)

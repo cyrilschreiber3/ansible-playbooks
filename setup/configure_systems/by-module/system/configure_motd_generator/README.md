@@ -1,39 +1,52 @@
 configure_motd_generator
 ========================
 
-This role installs and configures a dynamic MOTD (Message of the Day) generator for Linux systems. It provides system information and a custom welcome message using a shell script and figlet.
+This role installs and configures a dynamic Message of the Day (MOTD) generator on Linux systems.
 
 Requirements
 ------------
-- Linux system
-- Sudo privileges for installation
-- Ansible >= 2.18
+
+- Ansible version 2.12+
+- Sudo privileges on the host
 
 Role Variables
 --------------
-- `install_dependencies`: Install required packages (figlet) [default: true]
-- `install_motd_binary`: Install the motd-sysinfo script [default: true]
 
-See `defaults/main.yml` for all configurable variables.
+### vars/main.yml
+
+None
+
+### defaults/main.yml
+
+- `install_dependencies`: Whether to install required packages (e.g., figlet).
+  - Type: boolean
+  - Default: `true`
+- `install_motd_binary`: Whether to install the `motd-sysinfo` script.
+  - Type: boolean
+  - Default: `true`
 
 Dependencies
 ------------
-None (standalone role)
+
+None.
 
 Example Playbook
 ----------------
+
+Here is a simple example of how to use this role:
+
 ```yaml
 - hosts: all
   roles:
     - role: configure_motd_generator
-      install_dependencies: true
-      install_motd_binary: true
 ```
 
 License
 -------
-Apache-2.0
+
+Apache 2.0
 
 Author Information
 ------------------
+
 Cyril Schreiber (https://github.com/cyrilschreiber3)

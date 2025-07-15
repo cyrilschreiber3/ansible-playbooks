@@ -1,44 +1,59 @@
 configure_rhel_servers
 =======================
 
-Ansible role to configure servers running Red Hat Enterprise Linux (RHEL). This role handles Red Hat subscription, repository setup, RHC installation, and system configuration for RHEL hosts.
+Ansible role to perform initial configuration on Red Hat Enterprise Linux (RHEL) servers.
 
 Requirements
 ------------
-- Ansible 2.18+
-- Access to Red Hat subscription (activation key and org ID)
-- Community modules: `community.general`
+
+- Ansible version 2.12+
+- Sudo privileges on the host
+- A Red Hat Enterprise Linux based system
+- The `community.general` collection must be installed
+- A valid Red Hat subscription with an activation key and organization ID
 
 Role Variables
 --------------
-Variables can be set in inventory, playbook, or via extra vars:
-- `redhat_activation_key` (**required**): Red Hat subscription activation key (vault-encrypted)
-- `redhat_org_id` (**required**): Red Hat organization ID (vault-encrypted)
 
-Other variables are set internally for repository and system configuration.
+### vars/main.yml
 
-See `defaults/main.yml` for all configurable variables.
+- `redhat_activation_key`: The activation key for Red Hat subscription.
+  - Type: string
+  - Default: None (Required)
+- `redhat_org_id`: The organization ID for Red Hat subscription.
+  - Type: string
+  - Default: None (Required)
+
+### defaults/main.yml
+
+None
 
 Dependencies
 ------------
-None (standalone role)
+
+None.
 
 Example Playbook
 ----------------
+
+Here is a simple example of how to use this role:
+
 ```yaml
 - hosts: rhel_servers
   gather_facts: true
   roles:
     - role: configure_rhel_servers
       vars:
-        configure_rhel_servers_redhat_activation_key: "{{ vault_redhat_activation_key }}"
-        configure_rhel_servers_redhat_org_id: "{{ vault_redhat_org_id }}"
+        redhat_activation_key: "{{ vault_redhat_activation_key }}"
+        redhat_org_id: "{{ vault_redhat_org_id }}"
 ```
 
 License
 -------
-Apache-2.0
+
+Apache 2.0
 
 Author Information
 ------------------
+
 Cyril Schreiber (https://github.com/cyrilschreiber3)
