@@ -27,5 +27,9 @@
       when: "'docker_servers' in group_names"
 
     - name: Configure DNS servers
-      ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../../by-module/network/configure_dns_servers/configure_dns_server.ansible.yml"
+      ansible.builtin.import_role:
+        name: configure_dns_servers
+
+    - name: Configure MOTD generator
+      ansible.builtin.import_role:
+        name: configure_motd_generator
