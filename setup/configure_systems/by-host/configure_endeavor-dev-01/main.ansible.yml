@@ -62,10 +62,6 @@
             group: "{{ ansible_user }}"
             mode: "0644"
 
-    - name: Configure MOTD generator
-      ansible.builtin.include_role:
-        name: configure_motd_generator
-
     - name: Configure Git and GPG
       ansible.builtin.import_tasks:
         file: "{{ playbook_dir }}/tasks/configure_git_and_gpg.ansible.yml"
