@@ -8,7 +8,7 @@
     . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
     nix profile list --json
   changed_when: false
-  register: nix_profiles
+  register: current_nix_profiles
 
 - name: Copy Nix profile to root
   ansible.builtin.copy:
@@ -19,16 +19,22 @@
     mode: "0644"
   register: copy_nix_profile
 
-- name: Install Nix profile
+- name: Define Nix profiles
+  ansible.builtin.set_fact:
+    nix_profiles: "{{ default_nix_profiles + (extra_nix_profiles | default([])) }}"
+
+- name: Install Nix profiles
   ansible.builtin.shell: |
     . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-    nix profile install /etc/nixconfig
-  when: nix_profiles is defined and not nix_profiles.stdout | from_json | json_query('elements.nixconfig.active')
+    nix profile install /etc/nixconfig#{{ item }}
+  when: current_nix_profiles is defined and not current_nix_profiles.stdout | from_json | json_query('elements.' + item + '.active')
   changed_when: true
+  with_items: "{{ nix_profiles }}"
 
 - name: Update Nix profile
   ansible.builtin.shell: |
     . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-    nix profile upgrade nixconfig
-  when: nix_profiles is defined and nix_profiles.stdout | from_json | json_query('elements.nixconfig.active') and copy_nix_profile.changed
+    nix profile upgrade {{ item }}
+  when: current_nix_profiles is defined and current_nix_profiles.stdout | from_json | json_query('elements.' + item + '.active') and copy_nix_profile.changed
   changed_when: true
+  with_items: "{{ nix_profiles }}"

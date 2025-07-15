@@ -35,36 +35,52 @@
       zsh-interactive-cd = pkgs.callPackage ./packages/zsh-interactive-cd.nix {inherit pkgs;};
       zsh-syntax-highlighting = pkgs.callPackage ./packages/zsh-syntax-highlighting.nix {inherit pkgs;};
     in {
-      packages.default = pkgs.buildEnv {
-        name = "mainPackageCollection";
-        paths = with pkgs;
-          [
-            # Fonts
-            nerd-fonts.meslo-lg
-            nerd-fonts.jetbrains-mono
+      packages = {
+        mainconfig = pkgs.buildEnv {
+          name = "mainPackageCollection";
+          paths = with pkgs;
+            [
+              # Fonts
+              nerd-fonts.meslo-lg
+              nerd-fonts.jetbrains-mono
 
-            # Shell packages
-            chroma
-            fzf
-            lsd
-            oh-my-posh
-            oh-my-zsh
-            zsh
+              # Shell packages
+              chroma
+              fzf
+              lsd
+              oh-my-posh
+              oh-my-zsh
+              zsh
 
+              # Utilities
+              nix-output-monitor
+            ]
+            ++ [
+              mainFlake.packages.${system}.myOMPConfig
+
+              zsh-autosuggestions
+              zsh-interactive-cd
+              zsh-syntax-highlighting
+            ];
+
+          extraOutputsToInstall = ["man" "doc"];
+        };
+        #
+        # Host-specific environments
+        #
+        endeavor_dev_01 = pkgs.buildEnv {
+          name = "endeavorPackageCollection";
+          paths = with pkgs; [
             # Utilities
             gnupg
-            nix-output-monitor
             pinentry-curses
-          ]
-          ++ [
-            mainFlake.packages.${system}.myOMPConfig
-
-            zsh-autosuggestions
-            zsh-interactive-cd
-            zsh-syntax-highlighting
           ];
 
-        extraOutputsToInstall = ["man" "doc"];
+          extraOutputsToInstall = ["man" "doc"];
+        };
+        #
+        # Role-specific environments
+        #
       };
     })
   );
