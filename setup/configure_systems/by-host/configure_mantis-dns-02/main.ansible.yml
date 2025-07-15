@@ -29,7 +29,5 @@
         module_dir: "{{ shared_modules_dir }}/network/configure_dns_servers"
 
     - name: Configure MOTD generator
-      ansible.builtin.import_tasks:
-        file: "{{ module_dir }}/configure_motd_generator.ansible.yml"
-      vars:
-        module_dir: "{{ shared_modules_dir }}/system/configure_motd_generator"
+      ansible.builtin.import_role:
+        name: configure_motd_generator
