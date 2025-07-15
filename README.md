@@ -20,11 +20,3 @@ The repository is organized into several directories:
 ## Usage
 
 These playbooks are intended to be run on my homelab. I try to keep them as modular and reusable as possible but as they are tailored to my specific environment and may not work out of the box on other systems.
-
-## License
-
-Apache 2.0
-
-## Author Information
-
-Cyril Schreiber (https://github.com/cyrilschreiber3)
