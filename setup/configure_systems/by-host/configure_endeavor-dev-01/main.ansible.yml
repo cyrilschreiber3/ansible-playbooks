@@ -40,12 +40,10 @@
             state: enabled
 
     - name: Configure Nix
-      ansible.builtin.import_tasks:
-        file: "{{ module_dir }}/configure_nix_package_manager.ansible.yml"
+      ansible.builtin.import_role:
+        name: configure_nix_package_manager
       vars:
-        module_dir: "{{ shared_modules_dir }}/system/configure_nix_package_manager"
-        configure_bash: true
-        nix_version: 2.29.1
+        configure_nix_package_manager_configure_bash: true
 
     - name: Configure Shell
       block:
