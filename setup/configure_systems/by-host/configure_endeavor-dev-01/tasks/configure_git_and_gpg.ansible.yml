@@ -58,12 +58,3 @@
     create: true
     mode: "0700"
   notify: restart_gpg_agent
-
-- name: Set GPG pinentry mode
-  ansible.builtin.lineinfile:
-    path: /root/.gnupg/gpg-agent.conf
-    regexp: "^pinentry-mode"
-    line: pinentry-mode loopback
-    create: true
-    mode: "0700"
-  notify: restart_gpg_agent
