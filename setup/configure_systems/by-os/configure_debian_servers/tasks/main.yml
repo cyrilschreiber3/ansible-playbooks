@@ -16,10 +16,10 @@
   when: "'docker_servers' in group_names"
 
 - name: Configure DNS servers
-  ansible.builtin.import_role:
+  ansible.builtin.include_role:
     name: configure_dns_servers
   when: not 'linux_containers' in group_names
 
 - name: Configure MOTD generator
-  ansible.builtin.import_role:
+  ansible.builtin.include_role:
     name: configure_motd_generator

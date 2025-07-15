@@ -41,7 +41,7 @@
             state: enabled
 
     - name: Configure Nix
-      ansible.builtin.import_role:
+      ansible.builtin.include_role:
         name: configure_nix_package_manager
       vars:
         configure_nix_package_manager_configure_bash: true
@@ -63,7 +63,7 @@
             mode: "0644"
 
     - name: Configure MOTD generator
-      ansible.builtin.import_role:
+      ansible.builtin.include_role:
         name: configure_motd_generator
 
     - name: Configure Git and GPG
