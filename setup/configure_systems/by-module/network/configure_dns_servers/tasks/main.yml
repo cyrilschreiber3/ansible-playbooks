@@ -21,16 +21,6 @@
               - "1.1.1.1"
           when: ansible_default_ipv4.network == "192.168.1.0" and ansible_hostname != "mantis-dns-02"
 
-    - name: Default search domains
-      ansible.builtin.set_fact:
-        search_domains:
-          - "schreibernet.dev"
-
-    - name: Default options
-      ansible.builtin.set_fact:
-        options:
-          - ""
-
 - name: Parse existing resolv.conf file
   block:
     - name: Get current resolv.conf content
@@ -64,7 +54,7 @@
 - name: Configure DNS servers
   become: true
   ansible.builtin.template:
-    src: "{{ module_dir }}/templates/resolv.conf.j2"
+    src: "{{ role_path }}/templates/resolv.conf.j2"
     dest: /etc/resolv.conf
     mode: "0644"
   vars:
