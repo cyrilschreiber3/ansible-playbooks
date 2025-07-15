@@ -1,0 +1,3 @@
+---
+# Local roles
+- name: configure_motd_generator

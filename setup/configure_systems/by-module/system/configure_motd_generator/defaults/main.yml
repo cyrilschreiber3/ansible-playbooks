@@ -1,0 +1,3 @@
+---
+install_dependencies: true
+install_motd_binary: true

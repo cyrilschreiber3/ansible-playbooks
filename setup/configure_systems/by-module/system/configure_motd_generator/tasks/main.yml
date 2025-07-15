@@ -1,0 +1,102 @@
+---
+- name: Install required packages for MOTD generator
+  become: true
+  ansible.builtin.package:
+    name:
+      - figlet
+    state: present
+    update_cache: true
+  when: install_dependencies
+
+- name: Clean up /etc/motd.d
+  block:
+    - name: Get /etc/motd.d content
+      become: true
+      ansible.builtin.find:
+        paths: /etc/motd.d
+        file_type: file
+      register: motd_files
+
+    - name: Ensure /etc/motd.d/.backup exists
+      become: true
+      ansible.builtin.file:
+        path: /etc/motd.d/.backup
+        state: directory
+        mode: "0755"
+
+    - name: Backup /etc/motd.d files
+      become: true
+      ansible.builtin.copy:
+        src: "{{ item.path }}"
+        dest: /etc/motd.d/.backup/
+        remote_src: true
+        mode: "0755"
+      with_items: "{{ motd_files.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+      when: not item.path.startswith("/etc/motd.d/.backup")
+
+    - name: Empty /etc/motd.d
+      become: true
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      with_items: "{{ motd_files.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+      when: not item.path.startswith("/etc/motd.d/.backup")
+
+- name: Clean up /etc/update-motd.d
+  block:
+    - name: Get /etc/update-motd.d content
+      become: true
+      ansible.builtin.find:
+        paths: /etc/update-motd.d
+        file_type: file
+        excludes:
+          - "/etc/update-motd.d/11-sysinfo"
+      register: update_motd_files
+
+    - name: Ensure /etc/update-motd.d/.backup exists
+      become: true
+      ansible.builtin.file:
+        path: /etc/update-motd.d/.backup
+        state: directory
+        mode: "0755"
+
+    - name: Backup /etc/update-motd.d files
+      become: true
+      ansible.builtin.copy:
+        src: "{{ item.path }}"
+        dest: /etc/update-motd.d/.backup/
+        remote_src: true
+        mode: "0755"
+      with_items: "{{ update_motd_files.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: Empty /etc/update-motd.d
+      become: true
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      with_items: "{{ update_motd_files.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+- name: Install motd-sysinfo script
+  become: true
+  ansible.builtin.copy:
+    src: "{{ role_path }}/files/motd-sysinfo.sh"
+    dest: /usr/bin/motd-sysinfo
+    mode: "0755"
+    owner: root
+    group: root
+  when: install_motd_binary
+
+- name: Link motd-sysinfo script to /etc/update-motd.d
+  become: true
+  ansible.builtin.file:
+    src: /usr/bin/motd-sysinfo
+    dest: /etc/update-motd.d/11-sysinfo
+    state: link
