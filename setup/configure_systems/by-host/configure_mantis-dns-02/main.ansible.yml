@@ -9,20 +9,16 @@
         file: "{{ playbook_dir }}/handlers/main.ansible.yml"
 
   tasks:
-    # - name: Prerequisites
-    #   block:
-    #     - name: Install packages
-    #       become: true
-    #       ansible.builtin.apt:
-    #         name:
-    #           - syncthing
-    #         update_cache: true
-    #         state: present
-
-    - name: Configure DNS servers
-      ansible.builtin.import_role:
-        name: configure_dns_servers
-
-    - name: Configure MOTD generator
-      ansible.builtin.import_role:
-        name: configure_motd_generator
+    - name: Prerequisites
+      block:
+        - name: Run OS-specific role
+          ansible.builtin.include_role:
+            name: configure_debian_servers
+        #
+        # - name: Install packages
+        #   become: true
+        #   ansible.builtin.apt:
+        #     name:
+        #       - syncthing
+        #     update_cache: true
+        #     state: present

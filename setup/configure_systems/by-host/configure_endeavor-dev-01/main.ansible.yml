@@ -8,12 +8,13 @@
       ansible.builtin.import_tasks:
         file: "{{ playbook_dir }}/handlers/main.ansible.yml"
 
-  vars:
-    shared_modules_dir: "{{ playbook_dir }}/../../by-module"
-
   tasks:
     - name: Prerequisites
       block:
+        - name: Run OS-specific role
+          ansible.builtin.include_role:
+            name: configure_debian_servers
+
         - name: Install basic packages
           ansible.builtin.apt:
             name:
