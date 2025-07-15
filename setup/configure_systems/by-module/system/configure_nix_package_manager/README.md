@@ -29,12 +29,14 @@ None (standalone role)
 
 Example Playbook
 ----------------
-    - hosts: servers
-      roles:
-        - role: configure_nix_package_manager
-          nix_version: "2.29.1"
-          flakes: true
-          configure_zsh: true
+```yaml
+- hosts: servers
+  roles:
+    - role: configure_nix_package_manager
+      nix_version: 2.29.1
+      flakes: true
+      configure_zsh: true
+```
 
 License
 -------
