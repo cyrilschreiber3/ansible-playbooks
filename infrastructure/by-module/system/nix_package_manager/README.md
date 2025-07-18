@@ -1,4 +1,4 @@
-configure_nix_package_manager
+nix_package_manager
 =============================
 
 This role installs and configures the Nix package manager on Linux systems.
@@ -59,7 +59,7 @@ Here is a simple example of how to use this role:
 ```yaml
 - hosts: servers
   roles:
-    - role: configure_nix_package_manager
+    - role: nix_package_manager
       vars:
         configure_zsh: true
         extra_nix_profiles:

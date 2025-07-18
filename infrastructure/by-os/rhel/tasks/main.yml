@@ -1,5 +1,5 @@
 ---
-# tasks file for configure_rhel_servers
+# tasks file for rhel
 - name: Configure subscription and Red Hat Connect
   ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/setup_redhat_connect.ansible.yml"

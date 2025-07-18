@@ -13,7 +13,7 @@
       block:
         - name: Run OS-specific role
           ansible.builtin.include_role:
-            name: configure_debian_servers
+            name: debian
 
         - name: Install basic packages
           ansible.builtin.apt:
@@ -42,9 +42,9 @@
 
     - name: Configure Nix
       ansible.builtin.include_role:
-        name: configure_nix_package_manager
+        name: nix_package_manager
       vars:
-        configure_nix_package_manager_configure_bash: true
+        nix_package_manager_configure_bash: true
 
     - name: Configure Shell
       block:
@@ -64,7 +64,7 @@
 
     - name: Configure Git and GPG
       ansible.builtin.import_tasks:
-        file: "{{ playbook_dir }}/tasks/configure_git_and_gpg.ansible.yml"
+        file: "{{ playbook_dir }}/tasks/git_gpg.ansible.yml"
 
     - name: Configure VSCode tunnel server
       block:

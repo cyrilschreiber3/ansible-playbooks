@@ -1,5 +1,5 @@
 ---
-# vars file for configure_rhel_servers
+# vars file for rhel
 redhat_activation_key: !vault |
   $ANSIBLE_VAULT;1.1;AES256
   34333235633361353235616333396133346336633264343532633737326135303739303235316132

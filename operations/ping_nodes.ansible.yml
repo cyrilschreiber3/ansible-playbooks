@@ -1,6 +1,7 @@
 ---
-- hosts: all
+- name: Ping all Nodes
+  hosts: all
 
   tasks:
-      - name: ping
-        ansible.builtin.gather_facts:
+    - name: Ping
+      ansible.builtin.ping:

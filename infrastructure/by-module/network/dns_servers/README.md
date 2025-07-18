@@ -1,4 +1,4 @@
-configure_dns_servers
+dns_servers
 =====================
 
 This role configures DNS name resolution on Linux systems by managing the `/etc/resolv.conf` file.
@@ -44,7 +44,7 @@ Here is a simple example of how to use this role:
 ```yaml
 - hosts: all
   roles:
-    - role: configure_dns_servers
+    - role: dns_servers
       vars:
         dns_servers:
           - "8.8.8.8"

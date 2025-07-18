@@ -1,4 +1,4 @@
-configure_debian_servers
+debian
 ========================
 
 This role performs initial configuration for servers running Debian-based operating systems.
@@ -25,8 +25,8 @@ Dependencies
 ------------
 
 This role depends on the following local roles:
-- `configure_dns_servers`
-- `configure_motd_generator`
+- `dns_servers`
+- `motd_generator`
 
 Example Playbook
 ----------------
@@ -37,7 +37,7 @@ Here is a simple example of how to use this role:
 - hosts: debian_servers
   gather_facts: true
   roles:
-    - role: configure_debian_servers
+    - role: debian
 ```
 
 License

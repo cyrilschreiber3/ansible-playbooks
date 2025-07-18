@@ -1,4 +1,4 @@
-configure_rhel_servers
+rhel
 =======================
 
 Ansible role to perform initial configuration on Red Hat Enterprise Linux (RHEL) servers.
@@ -42,7 +42,7 @@ Here is a simple example of how to use this role:
 - hosts: rhel_servers
   gather_facts: true
   roles:
-    - role: configure_rhel_servers
+    - role: rhel
       vars:
         redhat_activation_key: "{{ vault_redhat_activation_key }}"
         redhat_org_id: "{{ vault_redhat_org_id }}"

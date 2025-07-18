@@ -1,5 +1,5 @@
 ---
-# tasks file for configure_debian_servers
+# tasks file for debian
 - name: Install basic packages
   become: true
   ansible.builtin.apt:
@@ -17,9 +17,9 @@
 
 - name: Configure DNS servers
   ansible.builtin.include_role:
-    name: configure_dns_servers
+    name: dns_servers
   when: not 'linux_containers' in group_names
 
 - name: Configure MOTD generator
   ansible.builtin.include_role:
-    name: configure_motd_generator
+    name: motd_generator

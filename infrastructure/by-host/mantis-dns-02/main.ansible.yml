@@ -13,7 +13,7 @@
       block:
         - name: Run OS-specific role
           ansible.builtin.include_role:
-            name: configure_debian_servers
+            name: debian
         #
         # - name: Install packages
         #   become: true

@@ -1,10 +1,11 @@
 ---
-- hosts: all
+- name: Test Sudo Privileges
+  hosts: all
   become: true
 
   tasks:
-      - name: Check if root
-        command: id -u
-        register: id_output
-        changed_when: false
-        failed_when: id_output.stdout != '0'
+    - name: Check if root
+      ansible.builtin.command: id -u
+      register: id_output
+      changed_when: false
+      failed_when: id_output.stdout != '0'

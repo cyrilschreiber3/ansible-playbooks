@@ -1,4 +1,4 @@
-configure_motd_generator
+motd_generator
 ========================
 
 This role installs and configures a dynamic Message of the Day (MOTD) generator on Linux systems.
@@ -38,7 +38,7 @@ Here is a simple example of how to use this role:
 ```yaml
 - hosts: all
   roles:
-    - role: configure_motd_generator
+    - role: motd_generator
 ```
 
 License
