@@ -1,0 +1,38 @@
+---
+# tasks file for node_exporter
+- name: Get latest version of node_exporter
+  ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/get_latest_version.ansible.yml"
+  when: ne_version == 'latest' or ne_version is not defined
+
+- name: Open firewall ports for node_exporter
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/open_firewall_ports.ansible.yml"
+  vars:
+    services:
+      - service_name: node_exporter
+        service_port: "{{ ne_port }}"
+        service_protocol: tcp
+
+- name: Install node_exporter
+  ansible.builtin.import_role:
+    name: geerlingguy.node_exporter
+  vars:
+    node_exporter_version: "{{ ne_version }}"
+    node_exporter_host: "{{ ne_host }}"
+    node_exporter_port: "{{ ne_port }}"
+    node_exporter_state: started
+    node_exporter_enabled: true
+    node_exporter_arch: "{{ (ansible_architecture == 'aarch64') | ternary('arm64', 'amd64') }}"
+  become: yes
+  when: ansible_os_family != 'Alpine'
+
+- name: Install node_exporter on Alpine based systems
+  ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/manual_install.ansible.yml"
+  vars:
+    node_exporter_version: "{{ ne_version }}"
+    node_exporter_host: "{{ ne_host }}"
+    node_exporter_port: "{{ ne_port }}"
+    node_exporter_bin_path: /usr/local/bin/node_exporter
+  when: ansible_os_family == 'Alpine'

@@ -1,0 +1,5 @@
+---
+# defaults file for node_exporter
+ne_version: latest
+ne_host: 0.0.0.0
+ne_port: 9200

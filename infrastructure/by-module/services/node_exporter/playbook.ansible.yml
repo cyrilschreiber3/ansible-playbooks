@@ -1,0 +1,6 @@
+---
+- name: Install and configure the node_exporter service
+  hosts: all, !mercury-fs-01, !idris-hv-01
+
+  roles:
+    - role: node_exporter
