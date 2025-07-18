@@ -108,7 +108,7 @@
 
       - name: Convert all Obsidian links to markdown links
         ansible.builtin.script:
-            cmd: "{{ playbook_dir }}/sync_homelab_arch_repo.modules/linkConverter.py '{{ item.path }}'"
+            cmd: "{{ playbook_dir }}/files/linkConverter.py '{{ item.path }}'"
             executable: python3
         with_items: "{{ md_files_public.files }}"
         register: result
