@@ -1,0 +1,34 @@
+---
+# tasks file for traefik
+- name: Get latest and current versions of traefik
+  ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/get_traefik_version.ansible.yml"
+
+- name: Install or update traefik
+  ansible.builtin.import_tasks:
+    file: "{{ role_path }}/tasks/install_or_update.ansible.yml"
+
+- name: Open firewall ports for http and https entrypoints
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/open_firewall_ports.ansible.yml"
+  vars:
+    services: >
+      {{
+        [
+          { 'service_name': 'traefik-http', 'service_port': 80, 'service_protocol': 'tcp' },
+          { 'service_name': 'traefik-https', 'service_port': 443, 'service_protocol': 'tcp' }
+        ]
+        + ([
+          { 'service_name': 'traefik-ssh', 'service_port': 222, 'service_protocol': 'tcp' }
+        ] if inventory_hostname in groups['external_proxies'] else [])
+      }}
+
+- name: Test if traefik is running
+  ansible.builtin.uri:
+    url: "http://{{ ansible_default_ipv4.address }}/ping"
+    return_content: yes
+    status_code: 200
+  register: traefik_test
+  until: traefik_test.status == 200
+  retries: 5
+  delay: 10

@@ -1,0 +1,6 @@
+---
+- name: Install or update Traefik
+  hosts: proxy_servers
+
+  roles:
+    - role: traefik
