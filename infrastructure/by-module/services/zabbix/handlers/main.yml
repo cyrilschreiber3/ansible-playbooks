@@ -1,4 +1,5 @@
 ---
+# handlers file for zabbix
 - name: Clean dnf repository metadata # noqa:no-changed-when
   become: yes
   ansible.builtin.command: dnf clean metadata

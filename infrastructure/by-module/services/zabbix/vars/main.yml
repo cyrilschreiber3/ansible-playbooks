@@ -1,0 +1,11 @@
+---
+# vars file for zabbix
+agent_param_server: "{{ zabbix_server }}" # address of Zabbix server to accept connections from;
+agent_param_serveractive: "" # address of Zabbix server to connect using active checks;
+agent_param_listenip: 0.0.0.0 # address for Zabbix agent to listen on;
+agent_param_listenport: 10050 # port for Zabbix agent to listen on;
+agent_variant_version: |
+  {% if agent_variant >= 2 %}
+    {% set version = agent_variant %}
+  {% endif %}
+  {{ version | default('') }}
