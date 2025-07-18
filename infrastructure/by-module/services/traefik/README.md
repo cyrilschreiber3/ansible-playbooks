@@ -1,38 +1,80 @@
-Role Name
-=========
+traefik
+=======
 
-A brief description of the role goes here.
+This Ansible role installs and configures Traefik, a modern reverse proxy and load balancer. The role automatically downloads the latest version of Traefik from GitHub, installs it on the target hosts, and configures it with appropriate firewall rules.
+
+> [!NOTE]
+> This role is designed specifically for my implementation of Traefik for my reverse proxy servers. It doesn't include any configuration for Traefik itself as it is managed separately in my infrastructure setup.
 
 Requirements
 ------------
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+- Ansible version 2.12+
+- Target hosts running Alpine Linux (OpenRC init system support)
+- Sudo privileges on the host
+- Required Ansible collections:
+  - `ansible.posix` (for firewalld module)
+  - `community.general` (for ufw module)
 
 Role Variables
 --------------
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+### defaults/main.yml
+
+- `traefik_bin_path`: Path where the Traefik binary will be installed
+  - Type: string
+  - Default: `/usr/sbin/traefik`
+
+### vars/main.yml
+
+- `infomaniak_api_key`: Encrypted API key for Infomaniak DNS provider (used for Let's Encrypt ACME challenges)
+  - Type: string (Ansible Vault encrypted)
+  - This variable is required for DNS-01 ACME challenges with Infomaniak
+
+### Task-defined Variables
+
+The role automatically sets the following variables during execution:
+- `traefik_latest_version`: Latest version available on GitHub
+- `traefik_current_version`: Currently installed version (if any)
+- `traefik_arch`: Target architecture (extracted from system)
+- `traefik_download_url`: Download URL for the latest Traefik binary
 
 Dependencies
 ------------
 
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
+None.
+
 
 Example Playbook
 ----------------
 
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
+### Using the Role Directly
 
-    - hosts: servers
-      roles:
-         - { role: username.rolename, x: 42 }
+```yaml
+---
+- name: Install Traefik on proxy servers
+  hosts: proxy_servers
+  become: yes
+  roles:
+    - role: traefik
+```
+
+### Using the Provided Playbook
+
+There is a ready-to-use playbook file (`playbook.ansible.yml`) at the root of this role that you can run directly:
+
+```bash
+ansible-playbook ansible-playbooks/infrastructure/by-module/services/traefik/playbook.ansible.yml
+```
+
+The playbook targets the `proxy_servers` group and applies the Traefik role to all hosts in that group.
 
 License
 -------
 
-BSD
+Apache 2.0
 
 Author Information
 ------------------
 
-An optional section for the role authors to include contact information, or a website (HTML is not allowed).
+Cyril Schreiber (https://github.com/cyrilschreiber3)
