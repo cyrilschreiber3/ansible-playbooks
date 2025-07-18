@@ -4,18 +4,14 @@ This repository contains a collection of Ansible playbooks and roles for managin
 
 ## Structure
 
-> [!NOTE]
-> The current structure will be reworked in the future to better suit my new approach to managing my homelab.
-
 The repository is organized into several directories:
 
-- **`ci-cd/`**: Playbooks related to Continuous Integration and Continuous Deployment.
-- **`debug/`**: Playbooks used for debugging and testing connectivity.
-- **`setup/`**: Contains roles and playbooks for initial server setup and configuration. This is the core of the repository, with roles organized by operating system, module, and host.
-  - **`configure_systems/`**: Contains roles for configuring systems.
-    - **`by-host/`**: Playbooks for each hosts.
-    - **`by-module/`**: Roles for configuring parts of the system, apps and services.
-    - **`by-os/`**: Roles for configuring systems by operating system. Each role has its own playbook to run it standalone.
+- **`operations/`**: Utility playbooks for common administrative tasks such as SSH key deployment, connectivity testing, and system validation.
+- **`infrastructure/`**: Core infrastructure management roles and playbooks, organized by different categorization approaches:
+  - **`by-host/`**: Host-specific configuration playbooks tailored for individual servers.
+  - **`by-module/`**: Modular roles for configuring specific system components, applications, and services.
+  - **`by-os/`**: Operating system-specific configuration roles (each with standalone playbooks).
+- **`ci-cd/`**: Playbooks related to Continuous Integration and Continuous Deployment workflows.
 
 ## Usage
 
