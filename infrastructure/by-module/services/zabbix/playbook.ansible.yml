@@ -1,6 +1,6 @@
 ---
 - name: Install and configure the Zabbix agent
-  hosts: all, !mercury-fs-01, !idris-hv-01
+  hosts: all, !truenas_servers, !proxmox_server
   gather_facts: true
 
   roles:
