@@ -78,6 +78,14 @@
 
           extraOutputsToInstall = ["man" "doc"];
         };
+        crucible_pro_01 = pkgs.buildEnv {
+          name = "cruciblePackageCollection";
+          paths = with pkgs; [
+            cowsay
+          ];
+
+          extraOutputsToInstall = ["man" "doc"];
+        };
         #
         # Role-specific environments
         #

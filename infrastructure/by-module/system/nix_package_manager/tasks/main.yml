@@ -11,6 +11,7 @@
   register: current_nix_profiles
 
 - name: Copy Nix profile to root
+  become: true
   ansible.builtin.copy:
     src: "{{ role_path }}/files/nix/"
     dest: "/etc/nixconfig"
