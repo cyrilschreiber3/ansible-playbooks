@@ -8,6 +8,30 @@
     update_cache: true
   when: install_dependencies
 
+- name: Clean up /etc/motd
+  block:
+    - name: Ensure /etc/motd exists
+      become: true
+      ansible.builtin.stat:
+        path: /etc/motd
+      register: motd_stat
+
+    - name: Backup /etc/motd
+      become: true
+      ansible.builtin.copy:
+        src: /etc/motd
+        dest: /etc/motd.backup
+        remote_src: true
+        mode: "0644"
+      when: motd_stat.stat.exists
+
+    - name: Empty /etc/motd
+      become: true
+      ansible.builtin.file:
+        path: /etc/motd
+        state: absent
+      when: motd_stat.stat.exists
+
 - name: Clean up /etc/motd.d
   block:
     - name: Get /etc/motd.d content
