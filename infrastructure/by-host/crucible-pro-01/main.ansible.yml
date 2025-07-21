@@ -31,102 +31,102 @@
       30333964303864666430363230623465616534653431653236666463373938636235
 
   tasks:
-    # - name: Prerequisites
-    #   block:
-    #     - name: Run OS-specific role
-    #       ansible.builtin.include_role:
-    #         name: debian
+    - name: Prerequisites
+      block:
+        - name: Run OS-specific role
+          ansible.builtin.include_role:
+            name: debian
 
-    #     - name: Install basic packages
-    #       become: true
-    #       ansible.builtin.apt:
-    #         name:
-    #           - acl
-    #           - curl
-    #           - git
-    #           - gnupg2
-    #           - ufw
-    #           - unzip
-    #         update_cache: true
-    #         state: present
+        - name: Install basic packages
+          become: true
+          ansible.builtin.apt:
+            name:
+              - acl
+              - curl
+              - git
+              - gnupg2
+              - ufw
+              - unzip
+            update_cache: true
+            state: present
 
-    # - name: Network configuration
-    #   become: true
-    #   block:
-    #     - name: Allow OpenSSH in UFW
-    #       community.general.ufw:
-    #         rule: allow
-    #         name: "OpenSSH"
+    - name: Network configuration
+      become: true
+      block:
+        - name: Allow OpenSSH in UFW
+          community.general.ufw:
+            rule: allow
+            name: "OpenSSH"
 
-    #     - name: Set logging for UFW
-    #       community.general.ufw:
-    #         logging: "on"
+        - name: Set logging for UFW
+          community.general.ufw:
+            logging: "on"
 
-    #     - name: Enable UFW
-    #       community.general.ufw:
-    #         state: enabled
+        - name: Enable UFW
+          community.general.ufw:
+            state: enabled
 
-    # - name: Configure Nix
-    #   ansible.builtin.include_role:
-    #     name: nix_package_manager
-    #   vars:
-    #     nix_package_manager_configure_bash: true
+    - name: Configure Nix
+      ansible.builtin.include_role:
+        name: nix_package_manager
+      vars:
+        nix_package_manager_configure_bash: true
 
-    # - name: Configure Shell
-    #   block:
-    #     - name: Set required auth for changing shell
-    #       become: true
-    #       ansible.builtin.lineinfile:
-    #         path: /etc/pam.d/chsh
-    #         regexp: '^auth\s+(?:required|sufficient)\s+pam_shells.so'
-    #         line: "auth sufficient pam_shells.so"
-    #         state: present
-    #       when: ansible_user != 'root'
+    - name: Configure Shell
+      block:
+        - name: Set required auth for changing shell
+          become: true
+          ansible.builtin.lineinfile:
+            path: /etc/pam.d/chsh
+            regexp: '^auth\s+(?:required|sufficient)\s+pam_shells.so'
+            line: "auth sufficient pam_shells.so"
+            state: present
+          when: ansible_user != 'root'
 
-    #     - name: Add Zsh to allowed shells
-    #       become: true
-    #       ansible.builtin.lineinfile:
-    #         path: /etc/shells
-    #         line: "{{ ansible_env.HOME }}/.nix-profile/bin/zsh"
-    #         state: present
-    #       when: ansible_user != 'root'
+        - name: Add Zsh to allowed shells
+          become: true
+          ansible.builtin.lineinfile:
+            path: /etc/shells
+            line: "{{ ansible_env.HOME }}/.nix-profile/bin/zsh"
+            state: present
+          when: ansible_user != 'root'
 
-    #     - name: Set Zsh as default shell
-    #       ansible.builtin.command:
-    #         cmd: chsh -s {{ ansible_env.HOME }}/.nix-profile/bin/zsh
-    #       when: ansible_user_shell != ansible_env.HOME + '/.nix-profile/bin/zsh'
-    #       register: chsh_result
-    #       changed_when: true
-    #       failed_when: chsh_result.rc != 0 or chsh_result.stdout != '' or chsh_result.stderr != ''
+        - name: Set Zsh as default shell
+          ansible.builtin.command:
+            cmd: chsh -s {{ ansible_env.HOME }}/.nix-profile/bin/zsh
+          when: ansible_user_shell != ansible_env.HOME + '/.nix-profile/bin/zsh'
+          register: chsh_result
+          changed_when: true
+          failed_when: chsh_result.rc != 0 or chsh_result.stdout != '' or chsh_result.stderr != ''
 
-    #     - name: Copy Zsh configuration
-    #       ansible.builtin.template:
-    #         src: "{{ playbook_dir }}/templates/zshrc.j2"
-    #         dest: "{{ ansible_env.HOME }}/.zshrc"
-    #         owner: "{{ ansible_user }}"
-    #         group: "{{ ansible_user }}"
-    #         mode: "0644"
+        - name: Copy Zsh configuration
+          ansible.builtin.template:
+            src: "{{ playbook_dir }}/templates/zshrc.j2"
+            dest: "{{ ansible_env.HOME }}/.zshrc"
+            owner: "{{ ansible_user }}"
+            group: "{{ ansible_user }}"
+            mode: "0644"
 
-    # - name: Configure Cockpit
-    #   block:
-    #     - name: Install Cockpit
-    #       become: true
-    #       ansible.builtin.apt:
-    #         name: cockpit
-    #         state: present
+    - name: Configure Cockpit
+      block:
+        - name: Install Cockpit
+          become: true
+          ansible.builtin.apt:
+            name: cockpit
+            state: present
 
-    #     - name: Enable and start Cockpit socket
-    #       become: true
-    #       ansible.builtin.systemd:
-    #         name: cockpit.socket
-    #         enabled: true
-    #         state: started
+        - name: Enable and start Cockpit socket
+          become: true
+          ansible.builtin.systemd:
+            name: cockpit.socket
+            enabled: true
+            state: started
 
-    #     - name: Allow Cockpit in UFW
-    #       become: true
-    #       community.general.ufw:
-    #         rule: allow
-    #         port: 9090
+        - name: Allow Cockpit in UFW
+          become: true
+          community.general.ufw:
+            rule: allow
+            port: 9090
 
     - name: Install MAAS
       block:
