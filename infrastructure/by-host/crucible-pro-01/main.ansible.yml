@@ -8,78 +8,250 @@
       ansible.builtin.import_tasks:
         file: "{{ playbook_dir }}/handlers/main.ansible.yml"
 
+  vars:
+    maas_version: "3.6"
+    maas_db_user: "maas"
+    maas_db_name: "maasdb"
+    maas_db_password: !vault |
+      $ANSIBLE_VAULT;1.1;AES256
+      65633038646336363863346135363237386230613364663762633432613364393630313663626265
+      3662636131656361333363356366633261643966306638360a333637393231616565343263623030
+      61383635353266306335616265643363646661376334663239393035316461386233636239313362
+      3538633039396131620a393039383331366636663762336139636336393831666438323334626336
+      64346436653439353434306332343962653933636366643962363664353337303834
+    maas_admin_user: "admin"
+    maas_admin_email: "admin@the127001.ch"
+    maas_admin_sshkeys: "gh:cyrilschreiber3"
+    maas_admin_password: !vault |
+      $ANSIBLE_VAULT;1.1;AES256
+      66306533613463633363366464656234363835363933353633376164386132636239356461343163
+      3830313739346139363832353464626531313235393735330a306432306136656130623261613036
+      38636664653932383036616563633766313032393638336235386565626536626565633739323238
+      6230323932333765640a393332313438393761383962333238613334613465396435363536393738
+      30333964303864666430363230623465616534653431653236666463373938636235
+
   tasks:
-    - name: Prerequisites
-      block:
-        - name: Run OS-specific role
-          ansible.builtin.include_role:
-            name: debian
+    # - name: Prerequisites
+    #   block:
+    #     - name: Run OS-specific role
+    #       ansible.builtin.include_role:
+    #         name: debian
 
-        - name: Install basic packages
+    #     - name: Install basic packages
+    #       become: true
+    #       ansible.builtin.apt:
+    #         name:
+    #           - acl
+    #           - curl
+    #           - git
+    #           - gnupg2
+    #           - ufw
+    #           - unzip
+    #         update_cache: true
+    #         state: present
+
+    # - name: Network configuration
+    #   become: true
+    #   block:
+    #     - name: Allow OpenSSH in UFW
+    #       community.general.ufw:
+    #         rule: allow
+    #         name: "OpenSSH"
+
+    #     - name: Set logging for UFW
+    #       community.general.ufw:
+    #         logging: "on"
+
+    #     - name: Enable UFW
+    #       community.general.ufw:
+    #         state: enabled
+
+    # - name: Configure Nix
+    #   ansible.builtin.include_role:
+    #     name: nix_package_manager
+    #   vars:
+    #     nix_package_manager_configure_bash: true
+
+    # - name: Configure Shell
+    #   block:
+    #     - name: Set required auth for changing shell
+    #       become: true
+    #       ansible.builtin.lineinfile:
+    #         path: /etc/pam.d/chsh
+    #         regexp: '^auth\s+(?:required|sufficient)\s+pam_shells.so'
+    #         line: "auth sufficient pam_shells.so"
+    #         state: present
+    #       when: ansible_user != 'root'
+
+    #     - name: Add Zsh to allowed shells
+    #       become: true
+    #       ansible.builtin.lineinfile:
+    #         path: /etc/shells
+    #         line: "{{ ansible_env.HOME }}/.nix-profile/bin/zsh"
+    #         state: present
+    #       when: ansible_user != 'root'
+
+    #     - name: Set Zsh as default shell
+    #       ansible.builtin.command:
+    #         cmd: chsh -s {{ ansible_env.HOME }}/.nix-profile/bin/zsh
+    #       when: ansible_user_shell != ansible_env.HOME + '/.nix-profile/bin/zsh'
+    #       register: chsh_result
+    #       changed_when: true
+    #       failed_when: chsh_result.rc != 0 or chsh_result.stdout != '' or chsh_result.stderr != ''
+
+    #     - name: Copy Zsh configuration
+    #       ansible.builtin.template:
+    #         src: "{{ playbook_dir }}/templates/zshrc.j2"
+    #         dest: "{{ ansible_env.HOME }}/.zshrc"
+    #         owner: "{{ ansible_user }}"
+    #         group: "{{ ansible_user }}"
+    #         mode: "0644"
+
+    # - name: Configure Cockpit
+    #   block:
+    #     - name: Install Cockpit
+    #       become: true
+    #       ansible.builtin.apt:
+    #         name: cockpit
+    #         state: present
+
+    #     - name: Enable and start Cockpit socket
+    #       become: true
+    #       ansible.builtin.systemd:
+    #         name: cockpit.socket
+    #         enabled: true
+    #         state: started
+
+    #     - name: Allow Cockpit in UFW
+    #       become: true
+    #       community.general.ufw:
+    #         rule: allow
+    #         port: 9090
+
+    - name: Install MAAS
+      block:
+        - name: Install MAAS packages
           become: true
-          ansible.builtin.apt:
-            name:
-              - curl
-              - git
-              - ufw
-              - unzip
-            update_cache: true
-            state: present
+          block:
+            - name: Install postgresql repository key
+              ansible.builtin.apt_key:
+                url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+                state: present
 
-    - name: Network configuration
-      become: true
-      block:
-        - name: Allow OpenSSH in UFW
+            - name: Add postgresql repository
+              ansible.builtin.apt_repository:
+                repo: "deb http://apt.postgresql.org/pub/repos/apt/ {{ ansible_distribution_release }}-pgdg main"
+                state: present
+
+            - name: Install prerequisites
+              ansible.builtin.apt:
+                name:
+                  - postgresql-16
+                  - python3-psycopg2
+                  - snapd
+                state: present
+                update_cache: true
+
+            - name: Install MAAS snap
+              become: true
+              community.general.snap:
+                name: maas
+                channel: "{{ maas_version }}/stable"
+                state: present
+
+            - name: Add snap to the PATH
+              ansible.builtin.copy:
+                dest: /etc/profile.d/snap.sh
+                content: PATH="$PATH:/snap/bin"
+                owner: root
+                group: root
+                mode: "0644"
+
+        - name: Disable timesyncd
+          become: true
+          ansible.builtin.systemd:
+            name: systemd-timesyncd
+            enabled: false
+            state: stopped
+
+        - name: Configure postgresql for MAAS
+          block:
+            - name: Ensure postgresql is running
+              become: true
+              ansible.builtin.systemd:
+                name: postgresql
+                state: started
+                enabled: true
+
+            - name: Create MAAS database user
+              become: true
+              become_user: postgres
+              community.postgresql.postgresql_user:
+                name: "{{ maas_db_user }}"
+                password: "{{ maas_db_password }}"
+                role_attr_flags: LOGIN,CREATEDB
+
+            - name: Create MAAS database
+              become: true
+              become_user: postgres
+              community.postgresql.postgresql_db:
+                name: "{{ maas_db_name }}"
+                owner: "{{ maas_db_user }}"
+              register: maas_db_creation
+
+            - name: Get postgresql hba file location
+              become: true
+              become_user: postgres
+              community.postgresql.postgresql_query:
+                query: "SHOW hba_file"
+              register: hba_file
+
+            - name: Configure postgresql hba file for MAAS
+              become: true
+              community.postgresql.postgresql_pg_hba:
+                dest: "{{ hba_file.query_result[0].hba_file }}"
+                contype: host
+                users: "{{ maas_db_user }}"
+                databases: "{{ maas_db_name }}"
+                address: "0.0.0.0/0"
+                method: md5
+
+        - name: Add MAAS through ufw
+          become: true
           community.general.ufw:
             rule: allow
-            name: "OpenSSH"
+            port: "{{ item.port }}"
+            proto: "{{ item.proto }}"
+          with_items:
+            - { port: 53, proto: "tcp" } # DNS
+            - { port: 53, proto: "udp" } # DNS
+            - { port: 68, proto: "tcp" } # DHCP
+            - { port: 69, proto: "udp" } # MAAS TFTP
+            - { port: 123, proto: "udp" } # NTP
+            - { port: 5240, proto: "tcp" } # MAAS web UI
+            - { port: 5242, proto: "tcp" }
+            - { port: 5248, proto: "tcp" }
 
-        - name: Set logging for UFW
-          community.general.ufw:
-            logging: "on"
-
-        - name: Enable UFW
-          community.general.ufw:
-            state: enabled
-
-    - name: Configure Nix
-      ansible.builtin.include_role:
-        name: nix_package_manager
-      vars:
-        nix_package_manager_configure_bash: true
-
-    - name: Configure Shell
-      block:
-        - name: Set required auth for changing shell
-          become: true
-          ansible.builtin.lineinfile:
-            path: /etc/pam.d/chsh
-            regexp: '^auth\s+(?:required|sufficient)\s+pam_shells.so'
-            line: "auth sufficient pam_shells.so"
-            state: present
-          when: ansible_user != 'root'
-
-        - name: Add Zsh to allowed shells
-          become: true
-          ansible.builtin.lineinfile:
-            path: /etc/shells
-            line: "{{ ansible_env.HOME }}/.nix-profile/bin/zsh"
-            state: present
-          when: ansible_user != 'root'
-
-        - name: Set Zsh as default shell
+        - name: Check if MAAS is already initialized
           become: true
           ansible.builtin.command:
-            cmd: chsh -s {{ ansible_env.HOME }}/.nix-profile/bin/zsh
-          when: ansible_user_shell != ansible_env.HOME + '/.nix-profile/bin/zsh'
-          register: chsh_result
-          changed_when: true
-          failed_when: chsh_result.rc != 0 or chsh_result.stdout != '' or chsh_result.stderr != ''
+            cmd: /snap/bin/maas status
+          register: maas_status
+          changed_when: false
+          failed_when: false
 
-        - name: Copy Zsh configuration
-          ansible.builtin.template:
-            src: "{{ playbook_dir }}/templates/zshrc.j2"
-            dest: "{{ ansible_env.HOME }}/.zshrc"
-            owner: "{{ ansible_user }}"
-            group: "{{ ansible_user }}"
-            mode: "0644"
+        - name: Initialize MAAS database
+          become: true
+          ansible.builtin.command:
+            cmd: /snap/bin/maas init region+rack --database-uri "postgres://{{ maas_db_user }}:{{ maas_db_password }}@localhost/{{ maas_db_name }}" --maas-url "http://{{ ansible_default_ipv4.address }}:5240/MAAS" # noqa: yaml[line-length]
+          register: maas_db_init
+          failed_when: "'MAAS has been set up' not in maas_db_init.stdout"
+          changed_when: true
+          when: maas_status.rc != 0 or 'MAAS is not configured' in maas_status.stdout
+
+        - name: Create MAAS admin user
+          become: true
+          ansible.builtin.command:
+            cmd: /snap/bin/maas createadmin --username '{{ maas_admin_user }}' --email '{{ maas_admin_email }}' --password '{{ maas_admin_password }}' --ssh-import '{{ maas_admin_sshkeys }}' # noqa: yaml[line-length]
+          changed_when: true
+          when: maas_status.rc != 0 or 'MAAS is not configured' in maas_status.stdout
