@@ -10,6 +10,9 @@
   ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/setup_dnf.ansible.yml"
 
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
 - name: Install Red Hat Connect
   become: true
   ansible.builtin.dnf:
@@ -22,21 +25,13 @@
     cmd: rhc status
   register: rhc_status
   changed_when: false
+  failed_when: false
 
-- name: Enable RHC
+- name: Enable Red Hat Insights
   become: true
   ansible.builtin.command:
-    cmd: rhc connect --activation-key {{ redhat_activation_key }} --organization {{ redhat_org_id }}
-  register: rhc_connect
-  when: "'Not connected to Red Hat Insights' in rhc_status.stdout or 'The Remote Host Configuration daemon is inactive' in rhc_status.stdout"
-  failed_when: "'Connected to Red Hat Insights' not in rhc_connect.stdout or 'Activated the Remote Host Configuration daemon' not in rhc_connect.stdout"
+    cmd: insights-client --register
+  register: rhc_insights
+  when: "'Not connected to Red Hat Insights' in rhc_status.stdout"
+  failed_when: "'Successfully registered host' not in rhc_insights.stdout and 'Successfully uploaded report' not in rhc_insights.stdout"
   changed_when: true
-
-- name: Set RHC reconnect delay
-  become: true
-  ansible.builtin.lineinfile:
-    path: /etc/rhc/config.toml
-    regexp: "^mqtt-reconnect-delay = "
-    line: "mqtt-reconnect-delay = '10s'"
-  notify:
-    - restart-rhc

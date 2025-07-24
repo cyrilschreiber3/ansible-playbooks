@@ -1,8 +1,41 @@
 ---
 # tasks file for rhel
+- name: Configure default user
+  block:
+    - name: Get cloud-user infos
+      ansible.builtin.getent:
+        database: passwd
+        key: cloud-user
+      register: cloud_user_info
+      changed_when: false
+      failed_when: false
+
+    - name: Set remote user
+      ansible.builtin.set_fact:
+        remote_super_user: "cloud-user"
+      when: cloud_user_info.ansible_facts is defined
+
+    - name: Set password for default user
+      become: true
+      ansible.builtin.user:
+        name: "{{ ansible_user_id }}"
+        password: "{{ '%s' | format(ansible_become_password) | regex_replace('\n', '') | password_hash('sha512', 'salt') }}"
+      when: ansible_user_id != "root"
+      vars:
+        ansible_user: "{{ remote_super_user | default('root') }}"
+
 - name: Configure subscription and Red Hat Connect
   ansible.builtin.include_tasks:
     file: "{{ role_path }}/tasks/setup_redhat_connect.ansible.yml"
+
+- name: Configure DNS servers
+  ansible.builtin.include_role:
+    name: dns_servers
+  when: not 'linux_containers' in group_names
+
+- name: Configure MOTD generator
+  ansible.builtin.include_role:
+    name: motd_generator
 
 - name: Add user to docker group
   become: true
