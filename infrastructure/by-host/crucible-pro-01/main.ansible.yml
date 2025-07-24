@@ -11,7 +11,7 @@
   vars:
     maas_version: "3.6"
     maas_db_user: "maas"
-    maas_db_name: "maasdb"
+    maas_db_name: "maasdb2"
     maas_db_password: !vault |
       $ANSIBLE_VAULT;1.1;AES256
       65633038646336363863346135363237386230613364663762633432613364393630313663626265
@@ -216,6 +216,7 @@
                 address: "0.0.0.0/0"
                 method: md5
 
+        # https://maas.io/docs/configuration-reference#p-17901-controller-port-settings
         - name: Add MAAS through ufw
           become: true
           community.general.ufw:
@@ -226,11 +227,15 @@
             - { port: 53, proto: "tcp" } # DNS
             - { port: 53, proto: "udp" } # DNS
             - { port: 68, proto: "tcp" } # DHCP
-            - { port: 69, proto: "udp" } # MAAS TFTP
+            - { port: 69, proto: "udp" } # TFTP
             - { port: 123, proto: "udp" } # NTP
             - { port: 5240, proto: "tcp" } # MAAS web UI
-            - { port: 5242, proto: "tcp" }
-            - { port: 5248, proto: "tcp" }
+            - { port: 5240, proto: "udp" } # MAAS web UI
+            - { port: 5242:5247, proto: "tcp" } # MAAS internal services
+            - { port: 5242:5247, proto: "udp" } # MAAS internal services
+            # - { port: 5250:5270, proto: "tcp" } # MAAS region controllers (RPC)
+            # - { port: 5250:5270, proto: "udp" } # MAAS region controllers (RPC)
+            - { port: 5248, proto: "tcp" } # MAAS communication
 
         - name: Check if MAAS is already initialized
           become: true
