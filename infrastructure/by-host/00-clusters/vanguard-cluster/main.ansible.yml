@@ -1,0 +1,16 @@
+---
+- name: Base playbook to configure the Vanguard k3s cluster nodes
+  hosts: vanguard_cluster # Harbinger-KN-01, Hoplite-KN-02, Warden-KN-03
+  gather_facts: true
+
+  handlers:
+    - name: Import handlers
+      ansible.builtin.import_tasks:
+        file: "{{ playbook_dir }}/handlers/main.ansible.yml"
+
+  tasks:
+    - name: Prerequisites
+      block:
+        - name: Run OS-specific role
+          ansible.builtin.include_role:
+            name: rhel
