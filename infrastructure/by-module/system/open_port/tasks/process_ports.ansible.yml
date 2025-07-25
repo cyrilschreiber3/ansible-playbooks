@@ -1,0 +1,44 @@
+---
+# Helper tasks to process and normalize port definitions
+- name: Process services with different port formats
+  ansible.builtin.set_fact:
+    normalized_services: "{{ processed_ports | trim }}"
+  vars:
+    processed_ports: >-
+      {% set result = [] %}
+      {% for service in services %}
+        {% if service.service_port is defined %}
+          {# Single port format #}
+          {% set _ = result.append({
+            'service_name': service.service_name,
+            'service_port_ufw': service.service_port,
+            'service_port_firewalld': service.service_port,
+            'service_protocol': service.service_protocol
+          }) %}
+        {% elif service.service_port_range is defined %}
+          {# Port range format (- or :) #}
+          {% if '-' in service.service_port_range|string %}
+            {% set range_parts = service.service_port_range|string|split('-') %}
+          {% elif ':' in service.service_port_range|string %}
+            {% set range_parts = service.service_port_range|string|split(':') %}
+          {% else %}
+            {# Single port specified as range #}
+            {% set _ = result.append({
+              'service_name': service.service_name,
+              'service_port_ufw': service.service_port_range,
+              'service_port_firewalld': service.service_port_range,
+              'service_protocol': service.service_protocol
+            }) %}
+          {% endif %}
+          {% if range_parts is defined and range_parts|length == 2 %}
+            {% set _ = result.append({
+              'service_name': service.service_name,
+              'service_port_ufw': [range_parts[0]|string, range_parts[1]|string] | join(':'),
+              'service_port_firewalld': [range_parts[0]|string, range_parts[1]|string] | join('-'),
+              'service_protocol': service.service_protocol
+            }) %}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+      {{ result }}
+  when: services is defined and services|length > 0

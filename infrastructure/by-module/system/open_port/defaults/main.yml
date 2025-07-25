@@ -1,0 +1,25 @@
+---
+# defaults file for open_port
+
+# Default services list - can be overridden
+services: []
+
+# Examples of service definitions:
+#
+# Single ports:
+# services:
+#   - service_name: "http"
+#     service_port: 80
+#     service_protocol: "tcp"
+#   - service_name: "https"
+#     service_port: 443
+#     service_protocol: "tcp"
+#
+# Port ranges (multiple formats supported):
+# services:
+#   - service_name: "web-range"
+#     service_port_range: "8000-8010"  # dash format
+#     service_protocol: "tcp"
+#   - service_name: "app-range"
+#     service_port_range: "9000:9010"  # colon format
+#     service_protocol: "tcp"
