@@ -1,4 +1,4 @@
-open_port
+open_ports
 =========
 
 This role opens network ports on Linux systems using either UFW or firewalld. It automatically detects the firewall service and configures port rules accordingly. If no firewall is installed, it will install and configure UFW.
@@ -34,7 +34,7 @@ Example Playbook
 ```yaml
     - hosts: servers
       roles:
-        - role: open_port
+        - role: open_ports
           services:
             - service_name: "http"
               service_port: 80

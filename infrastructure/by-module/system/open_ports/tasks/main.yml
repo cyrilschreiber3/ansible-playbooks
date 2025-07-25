@@ -1,5 +1,5 @@
 ---
-# tasks file for open_port
+# tasks file for open_ports
 - name: Open ports
   when: services is defined and services | length > 0
   block:

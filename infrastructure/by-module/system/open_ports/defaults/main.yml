@@ -1,5 +1,5 @@
 ---
-# defaults file for open_port
+# defaults file for open_ports
 
 # Default services list - can be overridden
 services: []
