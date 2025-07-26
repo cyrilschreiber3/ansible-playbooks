@@ -25,6 +25,8 @@
         proto: "{{ item.service_protocol }}"
         state: reloaded
       with_items: "{{ normalized_services }}"
+      loop_control:
+        label: "{{ item.service_name }}"
       when:
         - ansible_facts.services['ufw.service'] is defined or ansible_facts.services['ufw'] is defined
         - ansible_facts.services['ufw.service'].state == 'running' or ansible_facts.services['ufw'].state == 'running'
@@ -37,7 +39,8 @@
         state: enabled
         immediate: yes
       with_items: "{{ normalized_services }}"
-      register: firewalld_result
+      loop_control:
+        label: "{{ item.service_name }}"
       when:
         - ansible_facts.services['firewalld.service'] is defined or ansible_facts.services['firewalld'] is defined
         - ansible_facts.services['firewalld.service'].state == 'running' or ansible_facts.services['firewalld'].state == 'running'
