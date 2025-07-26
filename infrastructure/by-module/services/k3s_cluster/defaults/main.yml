@@ -15,7 +15,7 @@ master_group: masters
 worker_group: workers
 
 # interface which will be used for flannel
-flannel_iface: eno1
+flannel_iface: eth0
 
 # apiserver_endpoint is virtual ip-address which will be configured on each master
 apiserver_endpoint: 192.168.30.222
