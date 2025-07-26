@@ -1,0 +1,283 @@
+---
+- name: Get k3s installed version
+  ansible.builtin.command: k3s --version
+  register: k3s_version_output
+  changed_when: false
+  ignore_errors: true
+
+- name: Set k3s installed version
+  when: k3s_version_output.rc == 0
+  ansible.builtin.set_fact:
+    installed_k3s_version: "{{ k3s_version_output.stdout_lines[0].split(' ')[2] }}"
+
+- name: Download artifact
+  when: k3s_version_output.rc != 0 or installed_k3s_version is version(k3s_version, '<')
+  block:
+    - name: Download k3s binary x64
+      ansible.builtin.get_url:
+        url: https://github.com/k3s-io/k3s/releases/download/{{ k3s_version }}/k3s
+        checksum: sha256:https://github.com/k3s-io/k3s/releases/download/{{ k3s_version }}/sha256sum-amd64.txt
+        dest: /usr/local/bin/k3s
+        owner: root
+        group: root
+        mode: "0755"
+      when: ansible_facts.architecture == "x86_64"
+
+    - name: Download k3s binary arm64
+      ansible.builtin.get_url:
+        url: https://github.com/k3s-io/k3s/releases/download/{{ k3s_version }}/k3s-arm64
+        checksum: sha256:https://github.com/k3s-io/k3s/releases/download/{{ k3s_version }}/sha256sum-arm64.txt
+        dest: /usr/local/bin/k3s
+        owner: root
+        group: root
+        mode: "0755"
+      when:
+        - ( ansible_facts.architecture is search("arm") and ansible_facts.userspace_bits == "64" )
+          or ansible_facts.architecture is search("aarch64")
+
+- name: Create kubectl symlink
+  ansible.builtin.file:
+    src: /usr/local/bin/k3s
+    dest: /usr/local/bin/kubectl
+    state: link
+  when: k3s_create_kubectl_symlink
+
+- name: Clean previous initializations
+  when:
+    - k3s_version_output.rc == 0
+  block:
+    - name: Stop k3s-init
+      ansible.builtin.systemd:
+        name: k3s-init
+        state: stopped
+      failed_when: false
+
+    # k3s-init won't work if the port is already in use
+    - name: Stop k3s
+      ansible.builtin.systemd:
+        name: k3s
+        state: stopped
+      failed_when: false
+
+    - name: Clean previous runs of k3s-init # noqa command-instead-of-module
+      # The systemd module does not support "reset-failed", so we need to resort to command.
+      ansible.builtin.command: systemctl reset-failed k3s-init
+      failed_when: false
+      changed_when: false
+
+- name: Add K3s autocomplete to user bashrc
+  when: ansible_user is defined
+  ansible.builtin.lineinfile:
+    path: "~{{ ansible_user }}/.bashrc"
+    regexp: '\.\s+<\(k3s completion bash\)'
+    line: ". <(k3s completion bash)  # Added by k3s-ansible"
+
+- name: Setup optional config file
+  when: server_config_yaml is defined
+  block:
+    - name: Make config directory
+      ansible.builtin.file:
+        path: "/etc/rancher/k3s"
+        mode: "0755"
+        state: directory
+    - name: Copy config values
+      ansible.builtin.copy:
+        content: "{{ server_config_yaml }}"
+        dest: "/etc/rancher/k3s/config.yaml"
+        mode: "0644"
+      register: _server_config_result
+
+- name: Deploy vip manifest
+  when: inventory_hostname == groups[master_group][0] or ansible_host == groups[master_group][0]
+  block:
+    - name: Create manifests directory on first master
+      ansible.builtin.file:
+        path: /var/lib/rancher/k3s/server/manifests
+        state: directory
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Download vip rbac manifest to first master
+      ansible.builtin.get_url:
+        url: https://kube-vip.io/manifests/rbac.yaml
+        dest: /var/lib/rancher/k3s/server/manifests/vip-rbac.yaml
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Copy vip manifest to first master
+      ansible.builtin.template:
+        src: vip.yaml.j2
+        dest: /var/lib/rancher/k3s/server/manifests/vip.yaml
+        owner: root
+        group: root
+        mode: "0644"
+
+- name: Deploy kube-vip manifest
+  when:
+    - kube_vip_lb_ip_range is defined
+    - inventory_hostname == groups[master_group][0] or ansible_host == groups[master_group][0]
+  block:
+    - name: Create manifests directory on first master
+      ansible.builtin.file:
+        path: /var/lib/rancher/k3s/server/manifests
+        state: directory
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Download vip cloud provider manifest to first master
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/kube-vip/kube-vip-cloud-provider/{{ kube_vip_cloud_provider_tag_version | default('main') }}/manifest/kube-vip-cloud-controller.yaml # noqa yaml[line-length]
+        dest: /var/lib/rancher/k3s/server/manifests/kube-vip-cloud-controller.yaml
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Copy kubevip configMap manifest to first master
+      ansible.builtin.template:
+        src: kubevip.yaml.j2
+        dest: /var/lib/rancher/k3s/server/manifests/kubevip.yaml
+        owner: root
+        group: root
+        mode: "0644"
+
+- name: Init cluster inside the transient k3s-init service
+  ansible.builtin.command:
+    cmd: systemd-run -p RestartSec=2 -p Restart=on-failure --unit=k3s-init k3s server {{ server_init_args }}
+    creates: "{{ systemd_dir }}/k3s-init.service"
+
+- name: Post-init tasks
+  block:
+    - name: Verify that all server nodes joined
+      when: not ansible_check_mode and (inventory_hostname == groups[master_group][0] or ansible_host == groups[master_group][0])
+      ansible.builtin.command:
+        cmd: >
+          k3s kubectl get nodes -l "node-role.kubernetes.io/control-plane=true" -o=jsonpath="{.items[*].metadata.name}"
+      register: nodes
+      until: nodes.rc == 0 and (nodes.stdout.split() | length) == (groups[master_group] | length)
+      retries: 20
+      delay: 10
+      changed_when: false
+
+    - name: Kill the temporary service used for initialization
+      ansible.builtin.systemd:
+        name: k3s-init
+        state: stopped
+      failed_when: false
+
+    - name: Copy K3s service file [Single]
+      when: groups[master_group] | length == 1
+      ansible.builtin.template:
+        src: "k3s-single.service.j2"
+        dest: "{{ systemd_dir }}/k3s.service"
+        owner: root
+        group: root
+        mode: "0644"
+      register: service_file_single
+
+    - name: Copy K3s service file [HA]
+      when:
+        - groups[master_group] | length > 1
+      ansible.builtin.template:
+        src: "k3s-ha.service.j2"
+        dest: "{{ systemd_dir }}/k3s.service"
+        owner: root
+        group: root
+        mode: "0644"
+      register: service_file_ha
+
+    - name: Add service environment variables
+      when: extra_service_envs is defined
+      ansible.builtin.lineinfile:
+        path: "{{ systemd_dir }}/k3s.service.env"
+        line: "{{ item }}"
+        create: true
+        mode: "0644"
+      with_items: "{{ extra_service_envs }}"
+
+    - name: Set K3S token in environment file
+      no_log: true # avoid logging the server token
+      ansible.builtin.lineinfile:
+        path: "{{ systemd_dir }}/k3s.service.env"
+        regexp: "^K3S_TOKEN=.*"
+        line: "K3S_TOKEN={{ k3s_token }}"
+        create: true
+        mode: "0644"
+
+    - name: Enable and check K3s service
+      ansible.builtin.systemd:
+        name: k3s
+        daemon_reload: true
+        state: started
+        enabled: true
+
+- name: Clean up old manifests
+  block:
+    - name: Get contents of manifests folder
+      ansible.builtin.find:
+        paths: /var/lib/rancher/k3s/server/manifests
+        file_type: file
+      register: k3s_server_manifests
+
+    - name: Get sub dirs of manifests folder
+      ansible.builtin.find:
+        paths: /var/lib/rancher/k3s/server/manifests
+        file_type: directory
+      register: k3s_server_manifests_directories
+
+    - name: Remove manifests and folders that are only needed for bootstrapping cluster so k3s doesn't auto apply on start
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      with_items:
+        - "{{ k3s_server_manifests.files }}"
+        - "{{ k3s_server_manifests_directories.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+- name: Setup kubectl for user
+  when: config_user_kubectl
+  block:
+    - name: Create directory .kube
+      ansible.builtin.file:
+        path: ~{{ ansible_user }}/.kube
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: "u=rwx,g=rx,o="
+
+    - name: Copy config file to user home directory
+      ansible.builtin.copy:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: ~{{ ansible_user }}/.kube/config
+        remote_src: true
+        owner: "{{ ansible_user }}"
+        mode: "u=rw,g=,o="
+
+    - name: Configure default KUBECONFIG for user
+      ansible.builtin.lineinfile:
+        path: ~{{ ansible_user }}/.bashrc
+        regexp: "export KUBECONFIG=~/.kube/config"
+        line: "export KUBECONFIG=~/.kube/config # Added by k3s-ansible"
+        state: present
+
+    - name: Configure kubectl autocomplete
+      ansible.builtin.lineinfile:
+        path: ~{{ ansible_user }}/.bashrc
+        regexp: '\.\s+<\(kubectl completion bash\)'
+        line: ". <(kubectl completion bash)  # Added by k3s-ansible"
+
+    - name: Configure kubectl cluster to {{ endpoint_url }}
+      ansible.builtin.command: >-
+        {{ k3s_kubectl_binary | default('k3s kubectl') }} config set-cluster default
+          --server={{ endpoint_url }}
+          --kubeconfig {{ ansible_user_dir }}/.kube/config
+      changed_when: true
+      vars:
+        endpoint_url: >-
+          https://{{ apiserver_endpoint | ansible.utils.ipwrap }}:{{ apiserver_port }}
+    # Deactivated linter rules:
+    #   - jinja[invalid]: As of version 6.6.0, ansible-lint complains that the input to ipwrap
+    #                     would be undefined. This will not be the case during playbook execution.
+    # noqa jinja[invalid]

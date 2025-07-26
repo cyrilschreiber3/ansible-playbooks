@@ -1,0 +1,183 @@
+---
+- name: Make the external ip address available to the role
+  ansible.builtin.set_fact:
+    k3s_node_ip: "{{ k3s_node_ip }}"
+
+- name: Enable IPv4 forwarding
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    state: present
+    reload: true
+
+- name: Enable IPv6 forwarding
+  ansible.posix.sysctl:
+    name: net.ipv6.conf.all.forwarding
+    value: "1"
+    state: present
+    reload: true
+  when: ansible_default_ipv6 != {}
+
+- name: Configure networking
+  block:
+    - name: Open network ports for k3s
+      ansible.builtin.include_role:
+        name: open_ports
+      vars:
+        services:
+          - service_name: "Spegel" # Embedded distributed registry
+            service_port: 5001
+            service_protocol: "tcp"
+          - service_name: "etcd"
+            service_port_range: "2379-2381"
+            service_protocol: "tcp"
+          - service_name: "Kubernetes API"
+            service_port: "{{ apiserver_port }}"
+            service_protocol: "tcp"
+          - service_name: "Flannel VXLAN"
+            service_port: "8472"
+            service_protocol: "udp"
+          - service_name: "Kubelet metrics"
+            service_port: 10250
+            service_protocol: "tcp"
+
+    - name: Populate service facts
+      ansible.builtin.service_facts:
+
+    - name: UFW rules
+      when:
+        - ansible_facts.services['ufw.service'] is defined or ansible_facts.services['ufw'] is defined
+        - ansible_facts.services['ufw.service'].state == 'running' or ansible_facts.services['ufw'].state == 'running'
+      block:
+        - name: Allow cluster CIDRs for ufw
+          community.general.ufw:
+            rule: allow
+            src: "{{ item }}"
+          with_items:
+            - "{{ (server_config_yaml | from_yaml)['cluster-cidr'] | default('10.42.0.0/16') }}"
+            - "{{ (server_config_yaml | from_yaml)['service-cidr'] | default('10.43.0.0/16') }}"
+          when:
+            - ansible_facts.services['ufw.service'] is defined or ansible_facts.services['ufw'] is defined
+            - ansible_facts.services['ufw.service'].state == 'running' or ansible_facts.services['ufw'].state == 'running'
+
+        - name: Allow node CIDRs for ufw
+          community.general.ufw:
+            rule: allow
+            src: "{{ item }}"
+          loop: >-
+            {{
+              (
+                groups[master_group] | default([])
+                + groups[worker_group] | default([])
+              )
+              | map('extract', hostvars, ['ansible_default_ipv4', 'address'])
+              | flatten | unique | list
+            }}
+          when:
+            - ansible_facts.services['ufw.service'] is defined or ansible_facts.services['ufw'] is defined
+            - ansible_facts.services['ufw.service'].state == 'running' or ansible_facts.services['ufw'].state == 'running'
+
+    - name: Firewalld rules
+      when:
+        - ansible_facts.services['firewalld.service'] is defined or ansible_facts.services['firewalld'] is defined
+        - ansible_facts.services['firewalld.service'].state == 'running' or ansible_facts.services['firewalld'].state == 'running'
+      block:
+        - name: Allow cluster CIDRs for firewalld
+          ansible.posix.firewalld:
+            source: "{{ item }}"
+            zone: internal
+            state: enabled
+            permanent: yes
+            immediate: yes
+          with_items:
+            - "{{ (server_config_yaml | from_yaml)['cluster-cidr'] | default('10.42.0.0/16') }}"
+            - "{{ (server_config_yaml | from_yaml)['service-cidr'] | default('10.43.0.0/16') }}"
+
+        - name: Allow node CIDRs for firewalld
+          ansible.posix.firewalld:
+            source: "{{ item }}"
+            zone: internal
+            state: enabled
+            permanent: yes
+            immediate: yes
+          loop: >-
+            {{
+              (
+                groups[master_group] | default([])
+                + groups[worker_group] | default([])
+              )
+              | map('extract', hostvars, 'ansible_default_ipv4')
+              | select('defined')
+              | map(attribute='address')
+              | flatten | unique | list
+            }}
+
+        - name: Allow all traffic from zone internal
+          ansible.posix.firewalld:
+            zone: internal
+            target: ACCEPT
+            state: enabled
+            permanent: yes
+          register: firewalld_internal_zone
+
+        - name: Reload firewalld # noqa: no-handler
+          ansible.builtin.service:
+            name: firewalld
+            state: reloaded
+          changed_when: false
+          when: firewalld_internal_zone.changed
+
+- name: Add br_netfilter to /etc/modules-load.d/
+  ansible.builtin.copy:
+    content: "br_netfilter"
+    dest: /etc/modules-load.d/br_netfilter.conf
+    mode: "u=rw,g=,o="
+  when: ansible_os_family == 'RedHat'
+
+- name: Load br_netfilter
+  community.general.modprobe:
+    name: br_netfilter
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Set bridge-nf-call-iptables (just to be sure)
+  ansible.posix.sysctl:
+    name: "{{ item }}"
+    value: "1"
+    state: present
+    reload: true
+  when: ansible_os_family == 'RedHat'
+  loop:
+    - net.bridge.bridge-nf-call-iptables
+    - net.bridge.bridge-nf-call-ip6tables
+
+- name: Check for Apparmor existence
+  ansible.builtin.stat:
+    path: /sys/module/apparmor/parameters/enabled
+  register: apparmor_enabled
+
+- name: Check if Apparmor is enabled
+  when: apparmor_enabled.stat.exists
+  ansible.builtin.command: cat /sys/module/apparmor/parameters/enabled
+  register: apparmor_status
+  changed_when: false
+
+- name: Install Apparmor Parser [Debian]
+  when:
+    - ansible_distribution == 'Debian'
+    - ansible_facts['distribution_major_version'] == "11"
+    - apparmor_status is defined
+    - apparmor_status.stdout == "Y"
+  ansible.builtin.package:
+    name: apparmor
+    state: present
+
+- name: Add /usr/local/bin to sudo secure_path
+  ansible.builtin.lineinfile:
+    line: "Defaults    secure_path = /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin"
+    regexp: "Defaults(\\s)*secure_path(\\s)*="
+    state: present
+    insertafter: EOF
+    path: /etc/sudoers
+    validate: "visudo -cf %s"
+  when: ansible_os_family == 'RedHat'
