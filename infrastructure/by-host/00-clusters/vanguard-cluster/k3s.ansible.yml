@@ -1,0 +1,37 @@
+---
+- name: Playbook to configure k3s on the Vanguard cluster nodes
+  hosts: vanguard_cluster # Harbinger-KN-01, Hoplite-KN-02, Warden-KN-03
+  gather_facts: true
+
+  vars:
+    cluster_join_token: !vault |
+      $ANSIBLE_VAULT;1.1;AES256
+      32656265393438633763663636306263396335383436616234653839623236653565653338393031
+      3031336433303436353532383463623438343539646231300a653231336538626631653765363661
+      31373937383965366261323334626433353135373662323362383933336366396232346163386164
+      3366383863653761360a306432333430663661306636326665636161336666356563633638323236
+      37396661313233613566653163383862343763636236663832616662393931626533383961356264
+      61353563383061326634663363616264626461313661303364646163386230616638326165396131
+      35613831366461373937313866376631643036646537343664333934633635373762323763633364
+      37396436306462316363313633613665363130303935653062383037353364353339326566343533
+      3866
+
+  tasks:
+    - name: Run k3s role
+      become: true
+      ansible.builtin.import_role:
+        name: k3s_cluster
+      vars:
+        k3s_version: v1.33.1+k3s1
+        ansible_user: "{{ ansible_user_id }}"
+        master_group: vanguard_masters
+        worker_group: vanguard_workers
+        flannel_iface: "{{ ansible_default_ipv4.interface }}"
+        apiserver_endpoint: 10.1.1.123
+        apiserver_aliases:
+          - "vanguard-kc-13-mgmt"
+          - "vanguard-kc-13-mgmt.schreibernet.dev"
+        k3s_token: "{{ cluster_join_token }}"
+        server_config_yaml: |
+          cluster-cidr: 10.42.0.0/16
+          service-cidr: 10.43.0.0/16

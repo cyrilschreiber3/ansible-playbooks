@@ -1,11 +1,11 @@
 galaxy_info:
   author: Cyril Schreiber
-  description: Ansible role to configure a k3s cluster with HA.
+  description: Ansible role to open a network port on any firewall.
   company: Schreibernet
 
   license: Apache-2.0
 
-  min_ansible_version: "2.14"
+  min_ansible_version: "2.12"
 
   galaxy_tags: []
 

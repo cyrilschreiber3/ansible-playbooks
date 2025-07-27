@@ -6,7 +6,22 @@
       - figlet
     state: present
     update_cache: true
-  when: install_dependencies
+  when: install_dependencies and not (ansible_os_family == "RedHat" and ansible_distribution_major_version == "10")
+
+# figlet is not yet available in RHEL 10 in the epel repo.
+- name: Install figlet package for RHEL 10
+  become: true
+  when: install_dependencies and (ansible_os_family == "RedHat" and ansible_distribution_major_version == "10")
+  block:
+    - name: Install the EPEL 9 gpg key
+      ansible.builtin.rpm_key:
+        state: present
+        key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9
+
+    - name: Install figlet package from EPEL 9
+      ansible.builtin.dnf:
+        name: https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/Packages/f/figlet-2.2.5-23.20151018gita565ae1.el9.x86_64.rpm
+        state: present
 
 - name: Clean up /etc/motd
   block:
