@@ -72,8 +72,11 @@
           name = "endeavorPackageCollection";
           paths = with pkgs; [
             # Utilities
+            age
             gnupg
             pinentry-curses
+            sops
+            ssh-to-age
           ];
 
           extraOutputsToInstall = ["man" "doc"];
