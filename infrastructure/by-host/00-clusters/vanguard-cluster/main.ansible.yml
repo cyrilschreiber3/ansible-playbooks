@@ -14,3 +14,30 @@
         - name: Run OS-specific role
           ansible.builtin.include_role:
             name: rhel
+
+    - name: Configure the iscsi daemon
+      become: true
+      block:
+        - name: Install iscsi-initiator-utils package
+          ansible.builtin.dnf:
+            name: iscsi-initiator-utils
+            state: present
+
+        - name: Ensure the initiator name is set
+          ansible.builtin.lineinfile:
+            path: /etc/iscsi/initiatorname.iscsi
+            regexp: "^InitiatorName="
+            line: "InitiatorName=$(/sbin/iscsi-iname)"
+            create: true
+            mode: "0600"
+
+        - name: Load the iscsi kernel module
+          community.general.modprobe:
+            name: iscsi_tcp
+            state: present
+
+        - name: Ensure the iscsi daemon is enabled and running
+          ansible.builtin.systemd:
+            name: iscsid.service
+            enabled: true
+            state: started
