@@ -41,12 +41,16 @@ def convert_link(link):
         'parent_title': link.split('|')[0].split('#')[-2] if len(link.split('|')[0].split('#')) > 2 else None,
     }
 
-    titles = md_parser(link_params['filepath'])
-    title_id = get_title_id(titles, link_params['title'], link_params['parent_title'])
+    if not link_params['filename'].startswith('|'):
+        titles = md_parser(link_params['filepath'])
+        title_id = get_title_id(titles, link_params['title'], link_params['parent_title'])
 
-    link_params['title_hook'] = (link_params['title'].replace(' ', '-').lower()) + (f'-{title_id[1]}' if title_id[1] else "")
+        link_params['title_hook'] = (link_params['title'].replace(' ', '-').lower()) + (f'-{title_id[1]}' if title_id[1] else "")
 
-    final_link = f'[{link_params["link_text"]}]({link_params["filename"].replace(" ", "%20")}#{link_params["title_hook"]})'
+        final_link = f'[{link_params["link_text"]}]({link_params["filename"].replace(" ", "%20")}#{link_params["title_hook"]})'
+
+    else:
+        final_link = f'[{link_params["link_text"]}]()'
 
     return final_link
 
