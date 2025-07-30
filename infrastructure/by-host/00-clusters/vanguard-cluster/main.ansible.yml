@@ -15,14 +15,18 @@
           ansible.builtin.include_role:
             name: rhel
 
+        - name: Install packages
+          become: true
+          ansible.builtin.dnf:
+            name: "{{ item }}"
+            state: present
+          with_items:
+            - iscsi-initiator-utils
+            - nfs-utils
+
     - name: Configure the iscsi daemon
       become: true
       block:
-        - name: Install iscsi-initiator-utils package
-          ansible.builtin.dnf:
-            name: iscsi-initiator-utils
-            state: present
-
         - name: Ensure the initiator name is set
           ansible.builtin.lineinfile:
             path: /etc/iscsi/initiatorname.iscsi
@@ -41,3 +45,9 @@
             name: iscsid.service
             enabled: true
             state: started
+
+    - name: Load the dm_crypt kernel module
+      become: true
+      community.general.modprobe:
+        name: dm_crypt
+        state: present
