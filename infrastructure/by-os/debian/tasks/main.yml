@@ -23,3 +23,15 @@
 - name: Configure MOTD generator
   ansible.builtin.include_role:
     name: motd_generator
+
+- name: Disable IPv6
+  become: true
+  ansible.posix.sysctl:
+    name: "{{ item }}"
+    value: "1"
+    state: present
+    reload: true
+  with_items:
+    - net.ipv6.conf.all.disable_ipv6
+    - net.ipv6.conf.default.disable_ipv6
+    - net.ipv6.conf.lo.disable_ipv6

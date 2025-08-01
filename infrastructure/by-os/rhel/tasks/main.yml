@@ -52,3 +52,15 @@
   when: ansible_distribution_major_version == "9" and ansible_kernel >= "4.20.0"
   changed_when: ansible_cmdline.psi is not defined or ansible_cmdline.psi != "1"
   notify: reboot-needed
+
+- name: Disable IPv6
+  become: true
+  ansible.posix.sysctl:
+    name: "{{ item }}"
+    value: "1"
+    state: present
+    reload: true
+  with_items:
+    - net.ipv6.conf.all.disable_ipv6
+    - net.ipv6.conf.default.disable_ipv6
+    - net.ipv6.conf.lo.disable_ipv6
