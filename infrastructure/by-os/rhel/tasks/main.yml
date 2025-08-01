@@ -1,6 +1,7 @@
 ---
 # tasks file for rhel
 - name: Configure default user
+  when: semaphore_vars is not defined
   block:
     - name: Get cloud-user infos
       ansible.builtin.getent:
