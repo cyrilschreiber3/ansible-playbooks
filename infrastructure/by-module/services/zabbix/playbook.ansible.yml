@@ -1,6 +1,6 @@
 ---
 - name: Install and configure the Zabbix agent
-  hosts: all, !truenas_servers, !proxmox_server
+  hosts: all, !truenas_servers, !proxmox_servers
   gather_facts: true
 
   roles:
