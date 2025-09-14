@@ -1,0 +1,81 @@
+---
+- name: Configure PBS LXC Starfarer-BAK-02
+  hosts: starfarer-bak-02
+  gather_facts: true
+
+  handlers:
+    - name: Import handlers
+      ansible.builtin.import_tasks:
+        file: "{{ playbook_dir }}/handlers/main.ansible.yml"
+
+  tasks:
+    - name: Prerequisites
+      block:
+        - name: Run OS-specific role
+          ansible.builtin.include_role:
+            name: debian
+
+        - name: Install basic packages
+          ansible.builtin.apt:
+            name:
+              - curl
+              - git
+              - gnupg
+              - python3-debian
+              - ufw
+              - unzip
+              - whiptail
+            update_cache: true
+            state: present
+
+    - name: Network configuration
+      block:
+        - name: Configure DNS servers
+          ansible.builtin.include_role:
+            name: dns_servers
+
+        - name: Allow OpenSSH in UFW
+          community.general.ufw:
+            rule: allow
+            name: "OpenSSH"
+
+        - name: Set logging for UFW
+          community.general.ufw:
+            logging: "on"
+
+        - name: Enable UFW
+          community.general.ufw:
+            state: enabled
+
+    - name: Install Proxmox Backup server
+      block:
+        - name: Download Proxmox Backup Server key
+          ansible.builtin.get_url:
+            url: https://download.proxmox.com/debian/proxmox-release-{{ ansible_distribution_release }}.gpg
+            dest: /usr/share/keyrings/proxmox-archive-keyring.gpg
+            mode: "0644"
+            validate_certs: false
+
+        - name: Add Proxmox Backup Server repository
+          ansible.builtin.deb822_repository:
+            name: pbs-no-subscription
+            types: deb
+            uris: http://download.proxmox.com/debian/pbs
+            suites: "{{ ansible_distribution_release }}"
+            components: pbs-no-subscription
+            signed_by: /usr/share/keyrings/proxmox-archive-keyring.gpg
+            state: present
+
+        - name: Install Proxmox Backup Server packages
+          ansible.builtin.apt:
+            name:
+              - proxmox-backup-server
+              - proxmox-backup-client
+            update_cache: true
+            state: present
+
+        - name: Allow PBS web interface in UFW
+          community.general.ufw:
+            rule: allow
+            port: "8007"
+            proto: tcp
